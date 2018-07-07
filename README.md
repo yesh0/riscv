@@ -39,17 +39,17 @@
 - [ ] hpmcounter[3-31]h
 
 ### Supervisor mode
-- [ ] sstatus
+- [x] sstatus
 - [ ] sedeleg
 - [ ] sideleg
-- [ ] sie
-- [ ] stvec
+- [x] sie
+- [x] stvec
 - [ ] scounteren
 - [ ] sscratch
 - [ ] sepc
-- [ ] scause
-- [ ] stval
-- [ ] sip
+- [x] scause
+- [x] stval
+- [x] sip
 - [ ] satp
 
 ### Machine mode

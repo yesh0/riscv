@@ -22,3 +22,10 @@ pub mod misa;
 pub mod mstatus;
 pub mod mtvec;
 pub mod mvendorid;
+
+pub mod sstatus;
+pub mod stvec;
+pub mod sie;
+pub mod sip;
+pub mod scause;
+pub mod stval;
