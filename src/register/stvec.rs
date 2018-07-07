@@ -35,7 +35,7 @@ impl Stvec {
 }
 
 /// Reads the CSR
-#[inline]
+#[inline(always)]
 pub fn read() -> Stvec {
     match () {
         #[cfg(target_arch = "riscv")]
@@ -53,7 +53,7 @@ pub fn read() -> Stvec {
 
 /// Writes the CSR
 #[cfg_attr(not(target_arch = "riscv"), allow(unused_variables))]
-#[inline]
+#[inline(always)]
 pub unsafe fn write(addr: usize, mode: TrapMode) {
     let bits = addr + mode as usize;
     match () {

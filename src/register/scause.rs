@@ -77,7 +77,7 @@ impl Exception {
 }
 impl Scause {
     /// Returns the contents of the register as raw bits
-    #[inline]
+    #[inline(always)]
     pub fn bits(&self) -> usize {
         self.bits
     }
@@ -95,7 +95,7 @@ impl Scause {
     }
 
     /// Trap Cause
-    #[inline]
+    #[inline(always)]
     pub fn cause(&self) -> Trap {
         if self.is_interrupt() {
             Trap::Interrupt(Interrupt::from(self.code()))
@@ -105,7 +105,7 @@ impl Scause {
     }
 
     /// Is trap cause an interrupt.
-    #[inline]
+    #[inline(always)]
     pub fn is_interrupt(&self) -> bool {
         match () {
             #[cfg(target_pointer_width = "32")]
@@ -118,14 +118,14 @@ impl Scause {
     }
 
     /// Is trap cause an exception.
-    #[inline]
+    #[inline(always)]
     pub fn is_exception(&self) -> bool {
         !self.is_interrupt()
     }
 }
 
 /// Reads the CSR
-#[inline]
+#[inline(always)]
 pub fn read() -> Scause {
     match () {
         #[cfg(target_arch = "riscv")]

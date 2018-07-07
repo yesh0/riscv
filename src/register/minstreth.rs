@@ -1,7 +1,7 @@
 //! minstreth register
 
 /// Reads the CSR
-#[inline]
+#[inline(always)]
 pub fn read() -> usize {
     match () {
         #[cfg(all(target_arch = "riscv", target_pointer_width = "32"))]

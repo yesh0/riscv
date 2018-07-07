@@ -22,43 +22,43 @@ pub enum SPP {
 
 impl Mstatus {
     /// User Interrupt Enable
-    #[inline]
+    #[inline(always)]
     pub fn uie(&self) -> bool {
         self.bits & (1 << 0) == 1 << 0
     }
 
     /// Supervisor Interrupt Enable
-    #[inline]
+    #[inline(always)]
     pub fn sie(&self) -> bool {
         self.bits & (1 << 1) == 1 << 1
     }
 
     /// Machine Interrupt Enable
-    #[inline]
+    #[inline(always)]
     pub fn mie(&self) -> bool {
         self.bits & (1 << 3) == 1 << 3
     }
 
     /// User Previous Interrupt Enable
-    #[inline]
+    #[inline(always)]
     pub fn upie(&self) -> bool {
         self.bits & (1 << 4) == 1 << 4
     }
 
     /// Supervisor Previous Interrupt Enable
-    #[inline]
+    #[inline(always)]
     pub fn spie(&self) -> bool {
         self.bits & (1 << 5) == 1 << 5
     }
 
     /// User Previous Interrupt Enable
-    #[inline]
+    #[inline(always)]
     pub fn mpie(&self) -> bool {
         self.bits & (1 << 7) == 1 << 7
     }
 
     /// Supervisor Previous Privilege Mode
-    #[inline]
+    #[inline(always)]
     pub fn spp(&self) -> SPP {
         match self.bits & (1 << 8) == (1 << 8) {
             true => SPP::Supervisor,
@@ -67,7 +67,7 @@ impl Mstatus {
     }
 
     /// Machine Previous Privilege Mode
-    #[inline]
+    #[inline(always)]
     pub fn mpp(&self) -> MPP {
         match (self.bits & (0b11 << 11)) >> 11 {
             0b00 => MPP::User,
@@ -80,7 +80,7 @@ impl Mstatus {
 
 
 /// Reads the CSR
-#[inline]
+#[inline(always)]
 pub fn read() -> Mstatus {
     match () {
         #[cfg(target_arch = "riscv")]
@@ -98,7 +98,7 @@ pub fn read() -> Mstatus {
 
 /// Sets the CSR
 #[cfg_attr(not(target_arch = "riscv"), allow(unused_variables))]
-#[inline]
+#[inline(always)]
 unsafe fn set(bits: usize) {
     match () {
         #[cfg(target_arch = "riscv")]
@@ -110,7 +110,7 @@ unsafe fn set(bits: usize) {
 
 /// Clears the CSR
 #[cfg_attr(not(target_arch = "riscv"), allow(unused_variables))]
-#[inline]
+#[inline(always)]
 unsafe fn clear(bits: usize) {
     match () {
         #[cfg(target_arch = "riscv")]
@@ -122,7 +122,7 @@ unsafe fn clear(bits: usize) {
 
 macro_rules! set_csr {
     ($set_field:ident, $e:expr) => {
-        #[inline]
+        #[inline(always)]
         pub unsafe fn $set_field() {
             set($e);
         }
@@ -131,7 +131,7 @@ macro_rules! set_csr {
 
 macro_rules! clear_csr {
     ($clear_field:ident, $e:expr) => {
-        #[inline]
+        #[inline(always)]
         pub unsafe fn $clear_field() {
             clear($e);
         }
@@ -158,12 +158,12 @@ set_csr!(set_spie, 1 << 5);
 /// Machine Previous Interrupt Enable
 set_csr!(set_mpie, 1 << 7);
 /// Supervisor Previous Privilege Mode
-#[inline]
+#[inline(always)]
 pub unsafe fn set_spp(spp: SPP) {
     set((spp as usize) << 8);
 }
 /// Machine Previous Privilege Mode
-#[inline]
+#[inline(always)]
 pub unsafe fn set_mpp(mpp: MPP) {
     set((mpp as usize) << 11);
 }

@@ -1,7 +1,7 @@
 //! stval register
 
 /// Reads the CSR
-#[inline]
+#[inline(always)]
 pub fn read() -> usize {
     match () {
         #[cfg(target_arch = "riscv")]

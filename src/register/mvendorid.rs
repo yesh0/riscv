@@ -19,7 +19,7 @@ impl Mvendorid {
 }
 
 /// Reads the CSR
-#[inline]
+#[inline(always)]
 pub fn read() -> Option<Mvendorid> {
     match () {
         #[cfg(target_arch = "riscv")]

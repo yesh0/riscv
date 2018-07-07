@@ -1,7 +1,7 @@
 //! mepc register
 
 /// Reads the CSR
-#[inline]
+#[inline(always)]
 pub fn read() -> u32 {
     match () {
         #[cfg(target_arch = "riscv")]

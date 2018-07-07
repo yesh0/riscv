@@ -46,7 +46,7 @@ impl Misa {
 }
 
 /// Reads the CSR
-#[inline]
+#[inline(always)]
 pub fn read() -> Option<Misa> {
     match () {
         #[cfg(target_arch = "riscv")]
