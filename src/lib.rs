@@ -7,12 +7,16 @@
 //! - Safe wrappers around assembly instructions like `mret`.
 
 #![no_std]
-#![deny(warnings)]
+//#![deny(warnings)]
 #![feature(asm)]
 #![feature(const_fn)]
 
 extern crate bare_metal;
+#[macro_use]
+extern crate bitflags;
 
 pub mod asm;
 pub mod interrupt;
 pub mod register;
+pub mod addr;
+pub mod paging;
