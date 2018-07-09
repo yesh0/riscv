@@ -124,19 +124,4 @@ impl Scause {
     }
 }
 
-/// Reads the CSR
-#[inline(always)]
-pub fn read() -> Scause {
-    match () {
-        #[cfg(target_arch = "riscv")]
-        () => {
-            let r: usize;
-            unsafe {
-                asm!("csrrs $0, 0x142, x0" : "=r"(r) ::: "volatile");
-            }
-            Scause { bits: r }
-        }
-        #[cfg(not(target_arch = "riscv"))]
-        () => unimplemented!(),
-    }
-}
+read_csr_as!(Scause, 0x142);

@@ -50,19 +50,4 @@ impl Sip {
     }
 }
 
-/// Reads the CSR
-#[inline(always)]
-pub fn read() -> Sip {
-    match () {
-        #[cfg(target_arch = "riscv")]
-        () => {
-            let r: usize;
-            unsafe {
-                asm!("csrrs $0, 0x144, x0" : "=r"(r) ::: "volatile");
-            }
-            Sip { bits: r }
-        }
-        #[cfg(not(target_arch = "riscv"))]
-        () => unimplemented!(),
-    }
-}
+read_csr_as!(Sip, 0x144);

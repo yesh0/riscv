@@ -34,32 +34,12 @@ impl Stvec {
     }
 }
 
-/// Reads the CSR
-#[inline(always)]
-pub fn read() -> Stvec {
-    match () {
-        #[cfg(target_arch = "riscv")]
-        () => {
-            let r: usize;
-            unsafe {
-                asm!("csrrs $0, 0x105, x0" : "=r"(r) ::: "volatile");
-            }
-            Stvec { bits: r }
-        }
-        #[cfg(not(target_arch = "riscv"))]
-        () => unimplemented!(),
-    }
-}
+read_csr_as!(Stvec, 0x105);
+write_csr!(0x105);
 
 /// Writes the CSR
 #[cfg_attr(not(target_arch = "riscv"), allow(unused_variables))]
 #[inline(always)]
 pub unsafe fn write(addr: usize, mode: TrapMode) {
-    let bits = addr + mode as usize;
-    match () {
-        #[cfg(target_arch = "riscv")]
-        () => asm!("csrrw x0, 0x105, $0" :: "r"(bits) :: "volatile"),
-        #[cfg(not(target_arch = "riscv"))]
-        () => unimplemented!(),
-    }
+    _write(addr + mode as usize);
 }

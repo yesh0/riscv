@@ -49,72 +49,9 @@ impl Sstatus {
     }
 }
 
-
-/// Reads the CSR
-#[inline(always)]
-pub fn read() -> Sstatus {
-    match () {
-        #[cfg(target_arch = "riscv")]
-        () => {
-            let r: usize;
-            unsafe {
-                asm!("csrrs $0, 0x100, x0" : "=r"(r) ::: "volatile");
-            }
-            Sstatus { bits: r }
-        }
-        #[cfg(not(target_arch = "riscv"))]
-        () => unimplemented!(),
-    }
-}
-
-/// Sets the CSR
-#[cfg_attr(not(target_arch = "riscv"), allow(unused_variables))]
-#[inline(always)]
-unsafe fn set(bits: usize) {
-    match () {
-        #[cfg(target_arch = "riscv")]
-        () => asm!("csrrs x0, 0x100, $0" :: "r"(bits) :: "volatile"),
-        #[cfg(not(target_arch = "riscv"))]
-        () => unimplemented!(),
-    }
-}
-
-/// Clears the CSR
-#[cfg_attr(not(target_arch = "riscv"), allow(unused_variables))]
-#[inline(always)]
-unsafe fn clear(bits: usize) {
-    match () {
-        #[cfg(target_arch = "riscv")]
-        () => asm!("csrrc x0, 0x100, $0" :: "r"(bits) :: "volatile"),
-        #[cfg(not(target_arch = "riscv"))]
-        () => unimplemented!(),
-    }
-}
-
-macro_rules! set_csr {
-    ($set_field:ident, $e:expr) => {
-        #[inline(always)]
-        pub unsafe fn $set_field() {
-            set($e);
-        }
-    }
-}
-
-macro_rules! clear_csr {
-    ($clear_field:ident, $e:expr) => {
-        #[inline(always)]
-        pub unsafe fn $clear_field() {
-            clear($e);
-        }
-    }
-}
-
-macro_rules! set_clear_csr {
-    ($set_field:ident, $clear_field:ident, $e:expr) => {
-        set_csr!($set_field, $e);
-        clear_csr!($clear_field, $e);
-    }
-}
+read_csr_as!(Sstatus, 0x100);
+set!(0x100);
+clear!(0x100);
 
 /// User Interrupt Enable
 set_clear_csr!(set_uie, clear_uie, 1 << 0);
@@ -127,5 +64,5 @@ set_csr!(set_spie, 1 << 5);
 /// Supervisor Previous Privilege Mode
 #[inline(always)]
 pub unsafe fn set_spp(spp: SPP) {
-    set((spp as usize) << 8);
+    _set((spp as usize) << 8);
 }

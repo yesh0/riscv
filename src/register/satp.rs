@@ -86,9 +86,8 @@ pub enum Mode {
     Bare = 0, Sv39 = 8, Sv48 = 9, Sv57 = 10, Sv64 = 11,
 }
 
-read!(Satp, 0x180);
-set!(Satp, 0x180);
-clear!(Satp, 0x180);
+read_csr_as!(Satp, 0x180);
+write_csr!(0x180);
 
 #[inline(always)]
 #[cfg(target_pointer_width = "32")]
@@ -97,5 +96,5 @@ pub unsafe fn set(mode: Mode, asid: usize, frame: Frame) {
     bits.set_bits(31..32, mode as usize);
     bits.set_bits(22..31, asid);
     bits.set_bits(0..22, frame.number());
-    _set(bits);
+    _write(bits);
 }
