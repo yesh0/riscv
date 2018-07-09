@@ -1,11 +1,11 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct VirtAddr(u32);
+pub struct VirtAddr(usize);
 
 impl VirtAddr {
-    pub fn new(addr: u32) -> VirtAddr {
+    pub fn new(addr: usize) -> VirtAddr {
         VirtAddr(addr)
     }
-    pub fn as_u32(&self) -> u32 {
+    pub fn as_usize(&self) -> usize {
         self.0
     }
     pub fn p2_index(&self) -> usize {
@@ -19,6 +19,9 @@ impl VirtAddr {
     }
     pub fn page_offset(&self) -> usize {
         (self.0 as usize) & 0xfff
+    }
+    pub(crate) unsafe fn as_mut<'a, 'b, T>(&'a self) -> &'b mut T {
+        &mut *(self.0 as *mut T)
     }
 }
 
@@ -65,7 +68,13 @@ impl Page {
     pub fn number(&self) -> usize {
         self.0.page_number()
     }
-
+    pub fn from_page_table_indices(p2_index: usize, p1_index: usize) -> Self {
+        use bit_field::BitField;
+        let mut addr = 0;
+        addr.set_bits(22..32, p2_index);
+        addr.set_bits(12..22, p1_index);
+        Page::of_addr(VirtAddr::new(addr))
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]

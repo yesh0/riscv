@@ -13,7 +13,7 @@
 - [x] sret
 - [x] mret
 - [x] wfi
-- [ ] sfence.vma
+- [x] sfence.vma
 
 ## Implemented CSR's
 
@@ -50,7 +50,7 @@
 - [x] scause
 - [x] stval
 - [x] sip
-- [ ] satp
+- [x] satp
 
 ### Machine mode
 - [x] mvendorid
