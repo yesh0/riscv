@@ -10,6 +10,9 @@
 //! - minstreth
 //! - mhpmcounter[3-31]h
 
+#[macro_use]
+mod macros;
+
 pub mod mcause;
 pub mod mcycle;
 pub mod mcycleh;
@@ -29,6 +32,7 @@ pub mod sie;
 pub mod sip;
 pub mod scause;
 pub mod stval;
+pub mod satp;
 
 pub mod time;
 pub mod timeh;

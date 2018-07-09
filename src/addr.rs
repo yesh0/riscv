@@ -14,6 +14,9 @@ impl VirtAddr {
     pub fn p1_index(&self) -> usize {
         (self.0 as usize >> 12) & 0xfff
     }
+    pub fn page_number(&self) -> usize {
+        self.0 as usize >> 12
+    }
     pub fn page_offset(&self) -> usize {
         (self.0 as usize) & 0xfff
     }
@@ -35,6 +38,9 @@ impl PhysAddr {
     pub fn p1_index(&self) -> usize {
         (self.0 as usize >> 12) & 0xfff
     }
+    pub fn page_number(&self) -> usize {
+        self.0 as usize >> 12
+    }
     pub fn page_offset(&self) -> usize {
         (self.0 as usize) & 0xfff
     }
@@ -45,11 +51,21 @@ pub struct Page(VirtAddr);
 
 impl Page {
     pub fn of_addr(addr: VirtAddr) -> Self {
-        Page(addr)
+        Page(VirtAddr(addr.0 & 0xfffff000))
     }
     pub fn start_address(&self) -> VirtAddr {
         self.0.clone()
     }
+    pub fn p2_index(&self) -> usize {
+        self.0.p2_index()
+    }
+    pub fn p1_index(&self) -> usize {
+        self.0.p1_index()
+    }
+    pub fn number(&self) -> usize {
+        self.0.page_number()
+    }
+
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -57,9 +73,18 @@ pub struct Frame(PhysAddr);
 
 impl Frame {
     pub fn of_addr(addr: PhysAddr) -> Self {
-        Frame(addr)
+        Frame(PhysAddr(addr.0 & 0xfffff000))
     }
     pub fn start_address(&self) -> PhysAddr {
         self.0.clone()
+    }
+    pub fn p2_index(&self) -> usize {
+        self.0.p2_index()
+    }
+    pub fn p1_index(&self) -> usize {
+        self.0.p1_index()
+    }
+    pub fn number(&self) -> usize {
+        self.0.page_number()
     }
 }

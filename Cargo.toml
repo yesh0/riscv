@@ -11,3 +11,4 @@ license = "ISC"
 [dependencies]
 bare-metal = "0.1.1"
 bitflags = "1.0"
+bit_field = "0.9.0"
