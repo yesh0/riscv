@@ -77,7 +77,7 @@ impl Page {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Frame(PhysAddr);
 
 impl Frame {
