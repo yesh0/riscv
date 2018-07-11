@@ -127,55 +127,36 @@ impl<'a> RecursivePageTable<'a> {
         }
     }
 
-    /// Internal helper function to create the page table of the next level if needed.
-    ///
-    /// If the passed entry is unused, a new frame is allocated from the given allocator, zeroed,
-    /// and the entry is updated to that address. If the passed entry is already mapped, the next
-    /// table is returned directly.
-    ///
-    /// The `next_page_table` page must be the page of the next page table in the hierarchy.
-    ///
-    /// Returns `MapToError::FrameAllocationFailed` if the entry is unused and the allocator
-    /// returned `None`.
-    unsafe fn create_next_table<'b, A>(
-        entry: &'b mut PageTableEntry,
-        next_table_page: Page,
-        allocator: &mut A,
-    ) -> Result<&'b mut PageTable, MapToError>
+    fn create_p1_if_not_exist<A>(&mut self, p2_index: usize, allocator: &mut A) -> Result<(), MapToError>
         where A: FrameAllocator,
     {
-        /// This inner function is used to limit the scope of `unsafe`.
-        ///
-        /// This is a safe function, so we need to use `unsafe` blocks when we do something unsafe.
-        #[inline(always)]
-        fn inner<'b, A>(
-            entry: &'b mut PageTableEntry,
-            next_table_page: Page,
-            allocator: &mut A,
-        ) -> Result<&'b mut PageTable, MapToError>
-            where A: FrameAllocator,
-        {
-            use self::PageTableFlags as Flags;
-
-            let created = if entry.is_unused() {
-                if let Some(frame) = allocator.alloc() {
-                    entry.set(frame, Flags::VALID);
-                } else {
-                    return Err(MapToError::FrameAllocationFailed);
-                }
-                true
+        type F = PageTableFlags;
+        let entry = &mut self.p2[p2_index];
+        if entry.is_unused() {
+            if let Some(frame) = allocator.alloc() {
+                entry.set(frame, F::VALID);
             } else {
-                false
-            };
-
-            let page_table = unsafe { next_table_page.start_address().as_mut::<PageTable>() };
-            if created {
-                page_table.zero();
+                return Err(MapToError::FrameAllocationFailed);
             }
-            Ok(page_table)
         }
+        Ok(())
+    }
 
-        inner(entry, next_table_page, allocator)
+    /// Edit a p1 page.
+    /// During the editing, the flag of entry `p2[p2_index]` is temporarily set to V+R+W.
+    fn edit_p1<F, T>(&mut self, p2_index: usize, f: F) -> T where F: FnOnce(&mut PageTable) -> T {
+        type F = PageTableFlags;
+        let flags = self.p2[p2_index].flags_mut();
+        assert_ne!(p2_index, self.recursive_index, "can not edit recursive index");
+        assert_ne!(p2_index, self.recursive_index + 1, "can not edit recursive index");
+        assert!(flags.contains(F::VALID), "try to edit a nonexistent p1 table");
+        assert!(!flags.contains(F::READABLE) && !flags.contains(F::WRITABLE), "try to edit a 4M page as p1 table");
+        flags.insert(F::READABLE | F::WRITABLE);
+        let p1 = Page::from_page_table_indices(self.recursive_index, p2_index);
+        let p1 = unsafe{ &mut *(p1.start_address().as_usize() as *mut PageTable) };
+        let ret = f(p1);
+        flags.remove(F::READABLE | F::WRITABLE);
+        ret
     }
 }
 
@@ -184,45 +165,43 @@ impl<'a> Mapper for RecursivePageTable<'a> {
         where A: FrameAllocator,
     {
         use self::PageTableFlags as Flags;
-        let p1_page = p1_page(page, self.recursive_index);
-        let p1 = unsafe { Self::create_next_table(&mut self.p2[page.p2_index()], p1_page, allocator)? };
-
-        if !p1[page.p1_index()].is_unused() {
-            return Err(MapToError::PageAlreadyMapped);
-        }
-        p1[page.p1_index()].set(frame, flags);
-        Ok(MapperFlush::new(page))
+        self.create_p1_if_not_exist(page.p2_index(), allocator)?;
+        self.edit_p1(page.p2_index(), |p1| {
+            if !p1[page.p1_index()].is_unused() {
+                return Err(MapToError::PageAlreadyMapped);
+            }
+            p1[page.p1_index()].set(frame, flags);
+            Ok(MapperFlush::new(page))
+        })
     }
 
     fn unmap(&mut self, page: Page) -> Result<(Frame, MapperFlush), UnmapError> {
         use self::PageTableFlags as Flags;
-        let p2_entry = &self.p2[page.p2_index()];
-        if p2_entry.is_unused() {
+        if self.p2[page.p2_index()].is_unused() {
             return Err(UnmapError::PageNotMapped);
         }
-        let p1 = unsafe { p1_page(page, self.recursive_index).start_address().as_mut::<PageTable>() };
-        let p1_entry = &mut p1[page.p1_index()];
-        if !p1_entry.flags().contains(Flags::VALID) {
-            return Err(UnmapError::PageNotMapped);
-        }
-        let frame = p1_entry.frame();
-        p1_entry.set_unused();
-        Ok((frame, MapperFlush::new(page)))
+        self.edit_p1(page.p2_index(), |p1| {
+            let p1_entry = &mut p1[page.p1_index()];
+            if !p1_entry.flags().contains(Flags::VALID) {
+                return Err(UnmapError::PageNotMapped);
+            }
+            let frame = p1_entry.frame();
+            p1_entry.set_unused();
+            Ok((frame, MapperFlush::new(page)))
+        })
     }
 
     fn translate_page(&self, page: Page) -> Option<Frame> {
         if self.p2[page.p2_index()].is_unused() {
             return None;
         }
-        let p1 = unsafe { p1_page(page, self.recursive_index).start_address().as_mut::<PageTable>() };
-        let p1_entry = &p1[page.p1_index()];
-        if p1_entry.is_unused() {
-            return None;
-        }
-        Some(p1_entry.frame())
+        let self_mut = unsafe{ &mut *(self as *const _ as *mut Self) };
+        self_mut.edit_p1(page.p2_index(), |p1| {
+            let p1_entry = &p1[page.p1_index()];
+            if p1_entry.is_unused() {
+                return None;
+            }
+            Some(p1_entry.frame())
+        })
     }
-}
-
-fn p1_page(page: Page, recursive_index: usize) -> Page {
-    Page::from_page_table_indices(recursive_index, page.p2_index())
 }

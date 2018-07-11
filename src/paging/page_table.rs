@@ -13,6 +13,7 @@ impl PageTable {
             entry.set_unused();
         }
     }
+    /// Virtual address of root: (R, R+1, 0)
     pub fn set_recursive(&mut self, recursive_index: usize, frame: Frame) {
         type EF = PageTableFlags;
         self[recursive_index].set(frame.clone(), EF::VALID);
@@ -64,6 +65,9 @@ impl PageTableEntry {
     }
     pub fn set(&mut self, frame: Frame, flags: PageTableFlags) {
         self.0 = (frame.number() << 10) as u32 | flags.bits();
+    }
+    pub fn flags_mut(&mut self) -> &mut PageTableFlags {
+        unsafe { &mut *(self as *mut _ as *mut PageTableFlags) }
     }
 }
 
