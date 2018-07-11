@@ -1,5 +1,6 @@
 use addr::*;
 use core::ops::{Index, IndexMut};
+use core::fmt::{Debug, Formatter, Error};
 
 pub struct PageTable {
     entries: [PageTableEntry; ENTRY_COUNT],
@@ -11,6 +12,11 @@ impl PageTable {
         for entry in self.entries.iter_mut() {
             entry.set_unused();
         }
+    }
+    pub fn set_recursive(&mut self, recursive_index: usize, frame: Frame) {
+        type EF = PageTableFlags;
+        self[recursive_index].set(frame.clone(), EF::VALID);
+        self[recursive_index + 1].set(frame.clone(), EF::VALID | EF::READABLE | EF::WRITABLE);
     }
 }
 
@@ -28,6 +34,16 @@ impl IndexMut<usize> for PageTable {
     }
 }
 
+impl Debug for PageTable {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        f.debug_map()
+            .entries(self.entries.iter().enumerate()
+                .filter(|p| !p.1.is_unused()))
+            .finish()
+    }
+}
+
+#[derive(Copy, Clone)]
 pub struct PageTableEntry(u32);
 
 impl PageTableEntry {
@@ -51,6 +67,15 @@ impl PageTableEntry {
     }
 }
 
+impl Debug for PageTableEntry {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        f.debug_struct("PageTableEntry")
+            .field("frame", &self.frame())
+            .field("flags", &self.flags())
+            .finish()
+    }
+}
+
 const ENTRY_COUNT: usize = 1 << 10;
 
 bitflags! {
@@ -59,7 +84,7 @@ bitflags! {
         const VALID =       1 << 0;
         const READABLE =    1 << 1;
         const WRITABLE =    1 << 2;
-        const EXCUTABLE =   1 << 3;
+        const EXECUTABLE =  1 << 3;
         const USER =        1 << 4;
         const GLOBAL =      1 << 5;
         const ACCESSED =    1 << 6;

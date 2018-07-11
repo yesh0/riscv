@@ -1,3 +1,5 @@
+use bit_field::BitField;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VirtAddr(usize);
 
@@ -9,16 +11,16 @@ impl VirtAddr {
         self.0
     }
     pub fn p2_index(&self) -> usize {
-        (self.0 as usize >> 22) & 0xfff
+        self.0.get_bits(22..32)
     }
     pub fn p1_index(&self) -> usize {
-        (self.0 as usize >> 12) & 0xfff
+        self.0.get_bits(12..22)
     }
     pub fn page_number(&self) -> usize {
-        self.0 as usize >> 12
+        self.0.get_bits(12..32)
     }
     pub fn page_offset(&self) -> usize {
-        (self.0 as usize) & 0xfff
+        self.0.get_bits(0..12)
     }
     pub(crate) unsafe fn as_mut<'a, 'b, T>(&'a self) -> &'b mut T {
         &mut *(self.0 as *mut T)
@@ -36,16 +38,16 @@ impl PhysAddr {
         self.0
     }
     pub fn p2_index(&self) -> usize {
-        (self.0 as usize >> 22) & 0xfff
+        self.0.get_bits(22..32) as usize
     }
     pub fn p1_index(&self) -> usize {
-        (self.0 as usize >> 12) & 0xfff
+        self.0.get_bits(12..22) as usize
     }
     pub fn page_number(&self) -> usize {
-        self.0 as usize >> 12
+        self.0.get_bits(12..32) as usize
     }
     pub fn page_offset(&self) -> usize {
-        (self.0 as usize) & 0xfff
+        self.0.get_bits(0..12) as usize
     }
 }
 

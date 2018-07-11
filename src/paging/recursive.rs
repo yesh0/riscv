@@ -99,11 +99,15 @@ impl<'a> RecursivePageTable<'a> {
         let page = Page::of_addr(VirtAddr::new(table as *const _ as usize));
         let recursive_index = page.p2_index();
 
-        if page.p1_index() != recursive_index {
-            return Err(NotRecursivelyMapped);
-        }
         use register::satp;
-        if satp::read().frame() != table[recursive_index].frame() {
+        type F = PageTableFlags;
+        if page.p1_index() != recursive_index + 1
+            || satp::read().frame() != table[recursive_index].frame()
+            || satp::read().frame() != table[recursive_index + 1].frame()
+            || !table[recursive_index].flags().contains(F::VALID)
+            ||  table[recursive_index].flags().contains(F::READABLE | F::WRITABLE)
+            || !table[recursive_index + 1].flags().contains(F::VALID | F::READABLE | F::WRITABLE)
+        {
             return Err(NotRecursivelyMapped);
         }
 
