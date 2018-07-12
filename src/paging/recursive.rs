@@ -131,10 +131,10 @@ impl<'a> RecursivePageTable<'a> {
         where A: FrameAllocator,
     {
         type F = PageTableFlags;
-        let entry = &mut self.p2[p2_index];
-        if entry.is_unused() {
+        if self.p2[p2_index].is_unused() {
             if let Some(frame) = allocator.alloc() {
-                entry.set(frame, F::VALID);
+                self.p2[p2_index].set(frame, F::VALID);
+                self.edit_p1(p2_index, |p1| p1.zero());
             } else {
                 return Err(MapToError::FrameAllocationFailed);
             }
