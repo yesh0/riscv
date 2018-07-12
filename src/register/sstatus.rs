@@ -1,6 +1,7 @@
 //! sstatus register
 // TODO: Virtualization, Memory Privilege and Extension Context Fields
 
+use bit_field::BitField;
 
 /// Supervisor Status Register
 #[derive(Clone, Copy, Debug)]
@@ -9,6 +10,7 @@ pub struct Sstatus {
 }
 
 /// Supervisor Previous Privilege Mode
+#[derive(Eq, PartialEq)]
 pub enum SPP {
     Supervisor = 1,
     User = 0,
@@ -46,6 +48,21 @@ impl Sstatus {
             true => SPP::Supervisor,
             false => SPP::User,
         }
+    }
+
+    #[inline(always)]
+    pub fn set_spie(&mut self, val: bool) {
+        self.bits.set_bit(5, val);
+    }
+
+    #[inline(always)]
+    pub fn set_sie(&mut self, val: bool) {
+        self.bits.set_bit(1, val);
+    }
+
+    #[inline(always)]
+    pub fn set_spp(&mut self, val: SPP) {
+        self.bits.set_bit(8, val == SPP::Supervisor);
     }
 }
 
