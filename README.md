@@ -45,8 +45,8 @@
 - [x] sie
 - [x] stvec
 - [ ] scounteren
-- [ ] sscratch
-- [ ] sepc
+- [x] sscratch
+- [x] sepc
 - [x] scause
 - [x] stval
 - [x] sip

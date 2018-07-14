@@ -57,6 +57,18 @@ macro_rules! write_csr {
     };
 }
 
+macro_rules! write_csr_as_usize {
+    ($csr_number:expr) => {
+        write_csr!($csr_number);
+
+        /// Writes the CSR
+        #[inline(always)]
+        pub fn write(bits: usize) {
+            unsafe{ _write(bits) }
+        }
+    };
+}
+
 macro_rules! set {
     ($csr_number:expr) => {
         /// Set the CSR

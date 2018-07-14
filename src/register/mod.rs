@@ -33,6 +33,8 @@ pub mod sip;
 pub mod scause;
 pub mod stval;
 pub mod satp;
+pub mod sscratch;
+pub mod sepc;
 
 pub mod time;
 pub mod timeh;
