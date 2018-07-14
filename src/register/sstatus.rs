@@ -50,6 +50,18 @@ impl Sstatus {
         }
     }
 
+    /// Make eXecutable Readable
+    #[inline(always)]
+    pub fn mxr(&self) -> bool {
+        self.bits.get_bit(19)
+    }
+
+    /// Permit Supervisor User Memory access
+    #[inline(always)]
+    pub fn sum(&self) -> bool {
+        self.bits.get_bit(18)
+    }
+
     #[inline(always)]
     pub fn set_spie(&mut self, val: bool) {
         self.bits.set_bit(5, val);
@@ -78,6 +90,10 @@ set_clear_csr!(set_sie, clear_sie, 1 << 1);
 set_csr!(set_upie, 1 << 4);
 /// Supervisor Previous Interrupt Enable
 set_csr!(set_spie, 1 << 5);
+/// Make eXecutable Readable
+set_clear_csr!(set_mxr, clear_mxr, 1 << 19);
+/// Permit Supervisor User Memory access
+set_clear_csr!(set_sum, clear_sum, 1 << 18);
 /// Supervisor Previous Privilege Mode
 #[inline(always)]
 pub unsafe fn set_spp(spp: SPP) {
