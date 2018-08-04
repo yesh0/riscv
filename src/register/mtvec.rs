@@ -38,7 +38,7 @@ impl Mtvec {
 #[inline(always)]
 pub fn read() -> Mtvec {
     match () {
-        #[cfg(target_arch = "riscv")]
+        #[cfg(target_arch = "riscv32")]
         () => {
             let r: usize;
             unsafe {
@@ -46,7 +46,7 @@ pub fn read() -> Mtvec {
             }
             Mtvec { bits: r }
         }
-        #[cfg(not(target_arch = "riscv"))]
+        #[cfg(not(target_arch = "riscv32"))]
         () => unimplemented!(),
     }
 }
@@ -57,9 +57,9 @@ pub fn read() -> Mtvec {
 pub unsafe fn write(addr: usize, mode: TrapMode) {
     let bits = addr + mode as usize;
     match () {
-        #[cfg(target_arch = "riscv")]
+        #[cfg(target_arch = "riscv32")]
         () => asm!("csrrw x0, 0x305, $0" :: "r"(bits) :: "volatile"),
-        #[cfg(not(target_arch = "riscv"))]
+        #[cfg(not(target_arch = "riscv32"))]
         () => unimplemented!(),
     }
 }
