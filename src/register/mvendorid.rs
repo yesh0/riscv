@@ -1,28 +1,30 @@
 //! mvendorid register
 
+use core::num::NonZeroUsize;
+
 /// mvendorid register
 #[derive(Clone, Copy, Debug)]
 pub struct Mvendorid {
-    bits: usize,
+    bits: NonZeroUsize,
 }
 
 impl Mvendorid {
     /// Returns the contents of the register as raw bits
     pub fn bits(&self) -> usize {
-        self.bits
+        self.bits.get()
     }
 
     /// Returns the JEDEC manufacturer ID
     pub fn jedec_manufacturer(&self) -> usize {
-        self.bits >> 7
+        self.bits() >> 7
     }
 }
 
 /// Reads the CSR
-#[inline(always)]
+#[inline]
 pub fn read() -> Option<Mvendorid> {
     match () {
-        #[cfg(target_arch = "riscv32")]
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
         () => {
             let r: usize;
             unsafe {
@@ -30,13 +32,9 @@ pub fn read() -> Option<Mvendorid> {
             }
             // When mvendorid is hardwired to zero it means that the mvendorid
             // csr isn't implemented.
-            if r == 0 {
-                None
-            } else {
-                Some(Mvendorid { bits: r })
-            }
+            NonZeroUsize::new(r).map(|bits| Mvendorid { bits })
         }
-        #[cfg(not(target_arch = "riscv32"))]
+        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
         () => unimplemented!(),
     }
 }

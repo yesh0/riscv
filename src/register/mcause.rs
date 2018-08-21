@@ -89,7 +89,7 @@ impl Exception {
 }
 impl Mcause {
     /// Returns the contents of the register as raw bits
-    #[inline(always)]
+    #[inline]
     pub fn bits(&self) -> usize {
         self.bits
     }
@@ -107,7 +107,7 @@ impl Mcause {
     }
 
     /// Trap Cause
-    #[inline(always)]
+    #[inline]
     pub fn cause(&self) -> Trap {
         if self.is_interrupt() {
             Trap::Interrupt(Interrupt::from(self.code()))
@@ -117,7 +117,7 @@ impl Mcause {
     }
 
     /// Is trap cause an interrupt.
-    #[inline(always)]
+    #[inline]
     pub fn is_interrupt(&self) -> bool {
         match () {
             #[cfg(target_pointer_width = "32")]
@@ -130,17 +130,17 @@ impl Mcause {
     }
 
     /// Is trap cause an exception.
-    #[inline(always)]
+    #[inline]
     pub fn is_exception(&self) -> bool {
         !self.is_interrupt()
     }
 }
 
 /// Reads the CSR
-#[inline(always)]
+#[inline]
 pub fn read() -> Mcause {
     match () {
-        #[cfg(target_arch = "riscv32")]
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
         () => {
             let r: usize;
             unsafe {
@@ -148,7 +148,7 @@ pub fn read() -> Mcause {
             }
             Mcause { bits: r }
         }
-        #[cfg(not(target_arch = "riscv32"))]
+        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
         () => unimplemented!(),
     }
 }

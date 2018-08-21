@@ -5,12 +5,12 @@ pub use bare_metal::{CriticalSection, Mutex, Nr};
 use register::mstatus;
 
 /// Disables all interrupts
-#[inline(always)]
+#[inline]
 pub unsafe fn disable() {
     match () {
-        #[cfg(target_arch = "riscv32")]
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
         () => mstatus::clear_mie(),
-        #[cfg(not(target_arch = "riscv32"))]
+        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
         () => {}
     }
 }
@@ -20,12 +20,12 @@ pub unsafe fn disable() {
 /// # Safety
 ///
 /// - Do not call this function inside an `interrupt::free` critical section
-#[inline(always)]
+#[inline]
 pub unsafe fn enable() {
     match () {
-        #[cfg(target_arch = "riscv32")]
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
         () => mstatus::set_mie(),
-        #[cfg(not(target_arch = "riscv32"))]
+        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
         () => {}
     }
 }

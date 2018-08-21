@@ -8,71 +8,71 @@ pub struct Mie {
 
 impl Mie {
     /// Returns the contents of the register as raw bits
-    #[inline(always)]
+    #[inline]
     pub fn bits(&self) -> usize {
         self.bits
     }
 
     /// User Software Interrupt Enable
-    #[inline(always)]
+    #[inline]
     pub fn usoft(&self) -> bool {
         self.bits & (1 << 0) == 1 << 0
     }
 
     /// Supervisor Software Interrupt Enable
-    #[inline(always)]
+    #[inline]
     pub fn ssoft(&self) -> bool {
         self.bits & (1 << 1) == 1 << 1
     }
 
     /// Machine Software Interrupt Enable
-    #[inline(always)]
+    #[inline]
     pub fn msoft(&self) -> bool {
         self.bits & (1 << 3) == 1 << 3
     }
 
     /// User Timer Interrupt Enable
-    #[inline(always)]
+    #[inline]
     pub fn utimer(&self) -> bool {
         self.bits & (1 << 4) == 1 << 4
     }
 
     /// Supervisor Timer Interrupt Enable
-    #[inline(always)]
+    #[inline]
     pub fn stimer(&self) -> bool {
         self.bits & (1 << 5) == 1 << 5
     }
 
     /// Machine Timer Interrupt Enable
-    #[inline(always)]
+    #[inline]
     pub fn mtimer(&self) -> bool {
         self.bits & (1 << 7) == 1 << 7
     }
 
     /// User External Interrupt Enable
-    #[inline(always)]
+    #[inline]
     pub fn uext(&self) -> bool {
         self.bits & (1 << 8) == 1 << 8
     }
 
     /// Supervisor External Interrupt Enable
-    #[inline(always)]
+    #[inline]
     pub fn sext(&self) -> bool {
         self.bits & (1 << 9) == 1 << 9
     }
 
     /// Machine External Interrupt Enable
-    #[inline(always)]
+    #[inline]
     pub fn mext(&self) -> bool {
         self.bits & (1 << 11) == 1 << 11
     }
 }
 
 /// Reads the CSR
-#[inline(always)]
+#[inline]
 pub fn read() -> Mie {
     match () {
-        #[cfg(target_arch = "riscv32")]
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
         () => {
             let r: usize;
             unsafe {
@@ -80,38 +80,38 @@ pub fn read() -> Mie {
             }
             Mie { bits: r }
         }
-        #[cfg(not(target_arch = "riscv32"))]
+        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
         () => unimplemented!(),
     }
 }
 
 /// Sets the CSR
-#[cfg_attr(not(target_arch = "riscv"), allow(unused_variables))]
-#[inline(always)]
+#[cfg_attr(not(any(target_arch = "riscv32", target_arch = "riscv64")), allow(unused_variables))]
+#[inline]
 unsafe fn set(bits: usize) {
     match () {
-        #[cfg(target_arch = "riscv32")]
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
         () => asm!("csrrs x0, 0x304, $0" :: "r"(bits) :: "volatile"),
-        #[cfg(not(target_arch = "riscv32"))]
+        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
         () => unimplemented!(),
     }
 }
 
 /// Clears the CSR
-#[cfg_attr(not(target_arch = "riscv"), allow(unused_variables))]
-#[inline(always)]
+#[cfg_attr(not(any(target_arch = "riscv32", target_arch = "riscv64")), allow(unused_variables))]
+#[inline]
 unsafe fn clear(bits: usize) {
     match () {
-        #[cfg(target_arch = "riscv32")]
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
         () => asm!("csrrc x0, 0x304, $0" :: "r"(bits) :: "volatile"),
-        #[cfg(not(target_arch = "riscv32"))]
+        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
         () => unimplemented!(),
     }
 }
 
 macro_rules! set_csr {
     ($set_field:ident, $e:expr) => {
-        #[inline(always)]
+        #[inline]
         pub unsafe fn $set_field() {
             set($e);
         }
@@ -120,7 +120,7 @@ macro_rules! set_csr {
 
 macro_rules! clear_csr {
     ($clear_field:ident, $e:expr) => {
-        #[inline(always)]
+        #[inline]
         pub unsafe fn $clear_field() {
             clear($e);
         }

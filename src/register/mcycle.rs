@@ -1,10 +1,10 @@
 //! mcycle register
 
 /// Reads the CSR
-#[inline(always)]
+#[inline]
 pub fn read() -> usize {
     match () {
-        #[cfg(target_arch = "riscv32")]
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
         () => {
             let r: usize;
             unsafe {
@@ -12,7 +12,7 @@ pub fn read() -> usize {
             }
             r
         }
-        #[cfg(not(target_arch = "riscv32"))]
+        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
         () => unimplemented!(),
     }
 }
