@@ -13,11 +13,18 @@ impl PageTable {
             entry.set_unused();
         }
     }
+
     /// Virtual address of root: (R, R+1, 0)
     pub fn set_recursive(&mut self, recursive_index: usize, frame: Frame) {
         type EF = PageTableFlags;
         self[recursive_index].set(frame.clone(), EF::VALID);
         self[recursive_index + 1].set(frame.clone(), EF::VALID | EF::READABLE | EF::WRITABLE);
+    }
+
+    /// Setup identity map: VirtPage at pagenumber -> PhysFrame at pagenumber
+    /// pn: pagenumber = addr>>12 in riscv32.
+    pub fn map_identity(&mut self, pn: usize, flags: PageTableFlags) {
+        self.entries[pn].set(Frame::of_addr(PhysAddr::new((pn as u32) << 22)), flags);
     }
 }
 
