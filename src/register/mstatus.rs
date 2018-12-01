@@ -80,12 +80,17 @@ impl Mstatus {
     }
 
     #[inline]
-    pub fn set_mpie(&mut self, val: bool) {
+    pub fn xie(&self) -> bool {
+        self.mie()
+    }
+
+    #[inline]
+    pub fn set_xpie(&mut self, val: bool) {
         self.bits.set_bit(7, val);
     }
 
     #[inline]
-    pub fn set_mie(&mut self, val: bool) {
+    pub fn set_xie(&mut self, val: bool) {
         self.bits.set_bit(3, val);
     }
 
@@ -168,12 +173,14 @@ set_clear_csr!(set_uie, clear_uie, 1 << 0);
 set_clear_csr!(set_sie, clear_sie, 1 << 1);
 /// Machine Interrupt Enable
 set_clear_csr!(set_mie, clear_mie, 1 << 3);
+set_clear_csr!(set_xie, clear_xie, 1 << 3);
 /// User Previous Interrupt Enable
 set_csr!(set_upie, 1 << 4);
 /// Supervisor Previous Interrupt Enable
 set_csr!(set_spie, 1 << 5);
 /// Machine Previous Interrupt Enable
 set_csr!(set_mpie, 1 << 7);
+set_csr!(set_xpie, 1 << 7);
 /// Supervisor Previous Privilege Mode
 #[inline]
 pub unsafe fn set_spp(spp: SPP) {
