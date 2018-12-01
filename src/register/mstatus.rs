@@ -1,6 +1,8 @@
 //! mstatus register
 // TODO: Virtualization, Memory Privilege and Extension Context Fields
 
+use bit_field::BitField;
+
 /// mstatus register
 #[derive(Clone, Copy, Debug)]
 pub struct Mstatus {
@@ -75,6 +77,21 @@ impl Mstatus {
             0b11 => MPP::Machine,
             _ => unreachable!(),
         }
+    }
+
+    #[inline]
+    pub fn set_mpie(&mut self, val: bool) {
+        self.bits.set_bit(7, val);
+    }
+
+    #[inline]
+    pub fn set_mie(&mut self, val: bool) {
+        self.bits.set_bit(3, val);
+    }
+
+    #[inline]
+    pub fn set_mpp(&mut self, val: MPP) {
+        self.bits.set_bits(11..13, val as usize);
     }
 }
 
