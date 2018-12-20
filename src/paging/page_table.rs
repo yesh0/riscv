@@ -14,17 +14,20 @@ impl PageTable {
         }
     }
 
-    /// Virtual address of root: (R, R+1, 0)
+    /// Parameter `frame` is the actual physical frame where the root page table resides,
+    ///  it can be anywhere in the main memory.
+    /// Denote `recursive_index` by K, then virtual address of the root page table is
+    ///  (K, K+1, 0) in Sv32, and (K, K, K+1, 0) in Sv39, and (K, K, K, K+1, 0) in Sv48.
     pub fn set_recursive(&mut self, recursive_index: usize, frame: Frame) {
         type EF = PageTableFlags;
         self[recursive_index].set(frame.clone(), EF::VALID);
         self[recursive_index + 1].set(frame.clone(), EF::VALID | EF::READABLE | EF::WRITABLE);
     }
 
-    /// Setup identity map: VirtPage at pagenumber -> PhysFrame at pagenumber
-    /// pn: pagenumber = addr>>12 in riscv32.
-    pub fn map_identity(&mut self, pn: usize, flags: PageTableFlags) {
-        self.entries[pn].set(Frame::of_addr(PhysAddr::new((pn as u32) << 22)), flags);
+    /// Setup identity map for the page with first level page table index.
+    #[cfg(target_pointer_width = "32")]
+    pub fn map_identity(&mut self, p2idx: usize, flags: PageTableFlags) {
+        self.entries[p2idx].set(Frame::of_addr(PhysAddr::new(p2idx << 22)), flags);
     }
 }
 
@@ -52,7 +55,7 @@ impl Debug for PageTable {
 }
 
 #[derive(Copy, Clone)]
-pub struct PageTableEntry(u32);
+pub struct PageTableEntry(usize);
 
 impl PageTableEntry {
     pub fn is_unused(&self) -> bool {
@@ -64,14 +67,17 @@ impl PageTableEntry {
     pub fn flags(&self) -> PageTableFlags {
         PageTableFlags::from_bits_truncate(self.0)
     }
+    pub fn ppn(&self) -> usize {
+        self.0 >> 10
+    }
     pub fn addr(&self) -> PhysAddr {
-        PhysAddr::new((self.0 << 2) & 0xfffff000)
+        PhysAddr::new(self.ppn() << 12)
     }
     pub fn frame(&self) -> Frame {
         Frame::of_addr(self.addr())
     }
     pub fn set(&mut self, frame: Frame, flags: PageTableFlags) {
-        self.0 = (frame.number() << 10) as u32 | flags.bits();
+        self.0 = (frame.number() << 10) | flags.bits();
     }
     pub fn flags_mut(&mut self) -> &mut PageTableFlags {
         unsafe { &mut *(self as *mut _ as *mut PageTableFlags) }
@@ -87,11 +93,14 @@ impl Debug for PageTableEntry {
     }
 }
 
+#[cfg(target_pointer_width = "64")]
+const ENTRY_COUNT: usize = 1 << 9;
+#[cfg(target_pointer_width = "32")]
 const ENTRY_COUNT: usize = 1 << 10;
 
 bitflags! {
     /// Possible flags for a page table entry.
-    pub struct PageTableFlags: u32 {
+    pub struct PageTableFlags: usize {
         const VALID =       1 << 0;
         const READABLE =    1 << 1;
         const WRITABLE =    1 << 2;

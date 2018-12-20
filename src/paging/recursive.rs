@@ -22,7 +22,7 @@ pub trait Mapper {
     fn identity_map<A>(&mut self, frame: Frame, flags: PageTableFlags, allocator: &mut A) -> Result<MapperFlush, MapToError>
         where A: FrameAllocator,
     {
-        let page = Page::of_addr(VirtAddr::new(frame.start_address().as_u32() as usize));
+        let page = Page::of_addr(VirtAddr::new(frame.start_address().as_usize()));
         self.map_to(page, frame, flags, allocator)
     }
 }

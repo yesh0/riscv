@@ -69,10 +69,9 @@ impl Satp {
     }
 
     /// Physical frame
-    #[cfg(target_pointer_width = "32")]
     #[inline(always)]
     pub fn frame(&self) -> Frame {
-        Frame::of_addr(PhysAddr::new((self.ppn() as u32) << 12))
+        Frame::of_ppn(self.ppn())
     }
 }
 
@@ -96,5 +95,15 @@ pub unsafe fn set(mode: Mode, asid: usize, frame: Frame) {
     bits.set_bits(31..32, mode as usize);
     bits.set_bits(22..31, asid);
     bits.set_bits(0..22, frame.number());
+    _write(bits);
+}
+
+#[inline(always)]
+#[cfg(target_pointer_width = "64")]
+pub unsafe fn set(mode: Mode, asid: usize, frame: Frame) {
+    let mut bits = 0usize;
+    bits.set_bits(60..64, mode as usize);
+    bits.set_bits(44..60, asid);
+    bits.set_bits(0..44, frame.number());
     _write(bits);
 }
