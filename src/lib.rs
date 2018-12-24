@@ -10,6 +10,7 @@
 //#![deny(warnings)]
 #![feature(asm)]
 #![feature(const_fn)]
+#![feature(nll)]
 
 extern crate bare_metal;
 #[macro_use]

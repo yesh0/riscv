@@ -59,6 +59,17 @@ impl VirtAddr {
         VirtAddr((self.0 >> 12) << 12)
     }
 
+    #[cfg(target_arch = "riscv32")]
+    pub fn from_page_table_indices(p2_index: usize,
+                                   p1_index: usize,
+                                   offset: usize) -> Self
+    {
+        assert!(p2_index.get_bits(10..32) == 0, "p2_index exceeding 10 bits");
+        assert!(p1_index.get_bits(10..32) == 0, "p1_index exceeding 10 bits");
+        assert!(offset.get_bits(12..32) == 0, "offset exceeding 12 bits");
+        VirtAddr::new((p2_index << 22) | (p1_index << 12) | offset)
+    }
+
     pub(crate) unsafe fn as_mut<'a, 'b, T>(&'a self) -> &'b mut T {
         &mut *(self.0 as *mut T)
     }
