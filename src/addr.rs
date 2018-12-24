@@ -70,6 +70,32 @@ impl VirtAddr {
         VirtAddr::new((p2_index << 22) | (p1_index << 12) | offset)
     }
 
+    #[cfg(target_arch = "riscv64")]
+    pub fn from_page_table_indices(p4_index: usize,
+                                   p3_index: usize,
+                                   p2_index: usize,
+                                   p1_index: usize,
+                                   offset: usize) -> Self
+    {
+        assert!(p4_index.get_bits(10..32) == 0, "p4_index exceeding 9 bits");
+        assert!(p3_index.get_bits(10..32) == 0, "p3_index exceeding 9 bits");
+        assert!(p2_index.get_bits(10..32) == 0, "p2_index exceeding 9 bits");
+        assert!(p1_index.get_bits(10..32) == 0, "p1_index exceeding 9 bits");
+        assert!(offset.get_bits(12..32) == 0, "offset exceeding 12 bits");
+        let mut addr: usize =
+            (p4_index << 12 << 9 << 9 << 9) |
+            (p3_index << 12 << 9 << 9) |
+            (p2_index << 12 << 9) |
+            (p1_index << 12) |
+            offset;
+        if addr.get_bit(47) {
+            addr.set_bits(48..64, 0xFFFF);
+        } else {
+            addr.set_bits(48..64, 0x0000);
+        }
+        VirtAddr::new(addr)
+    }
+
     pub(crate) unsafe fn as_mut<'a, 'b, T>(&'a self) -> &'b mut T {
         &mut *(self.0 as *mut T)
     }

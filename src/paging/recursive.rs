@@ -75,8 +75,10 @@ pub enum UnmapError {
 ///
 /// This struct implements the `Mapper` trait.
 pub struct RecursivePageTable<'a> {
-    root_table: &'a mut PageTable,
-    recursive_index: usize,
+    // TODO: because of riscv64's preliminary design,
+    // these fields were (shouldn't be) made public
+    pub root_table: &'a mut PageTable,
+    pub recursive_index: usize,
 }
 
 /// An error indicating that the given page table is not recursively mapped.
@@ -161,10 +163,11 @@ impl<'a> RecursivePageTable<'a> {
     }
 }
 
+// TODO: make implementation cleverer. for now gofy design is used.
 #[cfg(target_arch = "riscv64")]
 impl<'a> RecursivePageTable<'a> {
     pub fn new(table: &'a mut PageTable) -> Result<Self, NotRecursivelyMapped> {
-        let page = Page::containing_address(VirtAddr::new(table as *const _ as usize));
+        let page = Page::of_addr(VirtAddr::new(table as *const _ as usize));
         let recursive_index = page.p4_index();
 
         use register::satp;
@@ -326,6 +329,55 @@ impl<'a> RecursivePageTable<'a> {
 
         flags.remove(F::READABLE | F::WRITABLE);
         ret
+    }
+
+    fn is_mapped(&self,
+                 p4_index: usize,
+                 p3_index: usize,
+                 p2_index: usize,
+                 p1_index: usize)
+        -> bool
+    {
+        type F = PageTableFlags;
+
+        let p3_table: &mut PageTable = if self.root_table[p4_index].is_unused() {
+            return false;
+        } else {
+            let p3_table = unsafe { &mut *(Page::from_page_table_indices(
+                self.recursive_index,
+                self.recursive_index,
+                self.recursive_index,
+                p4_index).start_address().as_usize() as *mut PageTable) };
+            p3_table
+        };
+
+        let p2_table: &mut PageTable = if p3_table[p3_index].is_unused() {
+            return false;
+        } else {
+            let p2_table = unsafe { &mut *(Page::from_page_table_indices(
+                self.recursive_index,
+                self.recursive_index,
+                p4_index,
+                p3_index).start_address().as_usize() as *mut PageTable) };
+            p2_table
+        };
+
+        let p1_table: &mut PageTable = if p2_table[p2_index].is_unused() {
+            return false;
+        } else {
+            let p1_table = unsafe { &mut *(Page::from_page_table_indices(
+                self.recursive_index,
+                p4_index,
+                p3_index,
+                p2_index).start_address().as_usize() as *mut PageTable) };
+            p1_table
+        };
+
+        if p1_table[p1_index].is_unused() {
+            return false;
+        }
+
+        true
     }
 }
 
