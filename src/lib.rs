@@ -12,6 +12,8 @@
 #![feature(const_fn)]
 #![feature(nll)]
 
+extern crate log;
+
 extern crate bare_metal;
 #[macro_use]
 extern crate bitflags;

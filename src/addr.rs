@@ -198,6 +198,11 @@ impl Page {
         addr.set_bits(30..39, p3_index);
         addr.set_bits(21..30, p2_index);
         addr.set_bits(12..21, p1_index);
+        if addr.get_bit(47) {
+            addr.set_bits(48..64, 0xFFFF);
+        } else {
+            addr.set_bits(48..64, 0x0000);
+        }
         Page::of_addr(VirtAddr::new(addr))
     }
 
