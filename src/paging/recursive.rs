@@ -222,7 +222,6 @@ impl<'a> RecursivePageTable<'a> {
         assert_ne!(p4_index, self.recursive_index + 1, "cannot create_p1 with p2_index=recursive_index + !");
 
         type F = PageTableFlags;
-        info!("enter create_p1_if_not_exist");
         let p4_table = &mut self.root_table;
 
         let p3_table_addr = Page::from_page_table_indices(
@@ -232,7 +231,6 @@ impl<'a> RecursivePageTable<'a> {
         if p4_table[p4_index].is_unused() {
             match allocator.alloc() {
                 None => {
-                    info!("leave0 create_p1_if_not_exist");
                     return Err(MapToError::FrameAllocationFailed);
                 }
                 Some(frame) => {
@@ -255,7 +253,6 @@ impl<'a> RecursivePageTable<'a> {
         if p3_table[p3_index].is_unused() {
             match allocator.alloc() {
                 None => {
-                    info!("leave1 create_p1_if_not_exist");
                     p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
                     sfence_vma_all();
                     return Err(MapToError::FrameAllocationFailed);
@@ -289,7 +286,6 @@ impl<'a> RecursivePageTable<'a> {
                     sfence_vma_all();
                     p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
                     sfence_vma_all();
-                    info!("leave2 create_p1_if_not_exist");
                     return Err(MapToError::FrameAllocationFailed);
                 },
                 Some(frame) => {
@@ -333,7 +329,6 @@ impl<'a> RecursivePageTable<'a> {
         p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
         sfence_vma_all();
 
-        info!("leaveS create_p1_if_not_exist");
         Ok(())
     }
 
@@ -422,8 +417,6 @@ impl<'a> RecursivePageTable<'a> {
 
         let p4_table = &mut self_mut.root_table;
 
-        info!("is_mapped: ck0 pass");
-
         let p3_table: &mut PageTable = if p4_table[p4_index].is_unused() {
             return false;
         } else {
@@ -434,7 +427,6 @@ impl<'a> RecursivePageTable<'a> {
                 p4_index).start_address().as_usize() as *mut PageTable) };
             p3_table
         };
-        info!("is_mapped: ck1 pass");
 
         p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
         sfence_vma_all();
@@ -450,7 +442,6 @@ impl<'a> RecursivePageTable<'a> {
                 p3_index).start_address().as_usize() as *mut PageTable) };
             p2_table
         };
-        info!("is_mapped: ck2 pass");
 
         p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
         sfence_vma_all();
@@ -472,7 +463,6 @@ impl<'a> RecursivePageTable<'a> {
                 p2_index).start_address().as_usize() as *mut PageTable) };
             p1_table
         };
-        info!("is_mapped: ck3 pass");
 
         p2_table[p2_index].flags_mut().insert(F::READABLE | F::WRITABLE);
         sfence_vma_all();
@@ -499,7 +489,6 @@ impl<'a> RecursivePageTable<'a> {
             sfence_vma_all();
             return false;
         }
-        info!("is_mapped: ck4 pass");
 
         p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
         sfence_vma_all();
@@ -515,7 +504,6 @@ impl<'a> RecursivePageTable<'a> {
         sfence_vma_all();
         p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
         sfence_vma_all();
-        info!("is_mapped returning: true");
         return true;
     }
 }
@@ -572,18 +560,13 @@ impl<'a> Mapper for RecursivePageTable<'a> {
     fn map_to<A>(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut A) -> Result<MapperFlush, MapToError>
         where A: FrameAllocator,
     {
+        info!("recursive table map_to: {:x} -> {:x}", frame.start_address().as_usize(), page.start_address().as_usize());
         use self::PageTableFlags as Flags;
         self.create_p1_if_not_exist(
             page.p4_index(),
             page.p3_index(),
             page.p2_index(),
             allocator)?;
-        info!("map_to |=> create_p1_if_not_exist finished");
-        info!("page.indices: {} {} {} {}. recursive_index: {}",
-              page.p4_index(), page.p3_index(), page.p2_index(), page.p1_index(),
-              self.recursive_index);
-        info!("is_mapped: {}", self.is_mapped(page.p4_index(), page.p3_index(),
-            page.p2_index(), page.p1_index()));
         let rv = self.edit_p1(
             page.p4_index(),
             page.p3_index(),
@@ -595,9 +578,6 @@ impl<'a> Mapper for RecursivePageTable<'a> {
                 p1[page.p1_index()].set(frame, flags);
                 Ok(MapperFlush::new(page))
             });
-        info!("map_to |=> edit_p1 finished");
-        info!("is_mapped: {}", self.is_mapped(page.p4_index(), page.p3_index(),
-            page.p2_index(), page.p1_index()));
         rv
     }
 

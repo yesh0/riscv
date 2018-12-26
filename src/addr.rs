@@ -6,7 +6,18 @@ pub struct VirtAddr(usize);
 
 
 impl VirtAddr {
+    #[cfg(target_arch = "riscv32")]
     pub fn new(addr: usize) -> VirtAddr {
+        VirtAddr(addr)
+    }
+
+    #[cfg(target_arch = "riscv64")]
+    pub fn new(addr: usize) -> VirtAddr {
+        if addr.get_bit(47) {
+            assert!(addr.get_bits(48..64) == 0xFFFF, "va 48..64 is not sext");
+        } else {
+            assert!(addr.get_bits(48..64) == 0x0000, "va 48..64 is not sext");
+        }
         VirtAddr(addr)
     }
 
@@ -106,7 +117,14 @@ impl VirtAddr {
 pub struct PhysAddr(usize);
 
 impl PhysAddr {
+    #[cfg(target_arch = "riscv32")]
     pub fn new(addr: usize) -> PhysAddr {
+        PhysAddr(addr)
+    }
+
+    #[cfg(target_arch = "riscv64")]
+    pub fn new(addr: usize) -> PhysAddr {
+        assert!(addr.get_bits(32..64) == 0, "pa 32..64 not zero?");
         PhysAddr(addr)
     }
 
