@@ -231,8 +231,10 @@ impl<'a> RecursivePageTable<'a> {
         let p3_table: &mut PageTable = unsafe { &mut *(p3_table_addr.as_usize() as *mut PageTable) };
         if p4_table[p4_index].is_unused() {
             match allocator.alloc() {
-                None =>
-                    return Err(MapToError::FrameAllocationFailed),
+                None => {
+                    info!("leave0 create_p1_if_not_exist");
+                    return Err(MapToError::FrameAllocationFailed);
+                }
                 Some(frame) => {
                     p4_table[p4_index].set(frame, F::VALID);
                     p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
@@ -241,6 +243,9 @@ impl<'a> RecursivePageTable<'a> {
                     sfence_vma_all();
                 }
             }
+        } else {
+            p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
+            sfence_vma_all();
         }
 
         let p2_table_addr = Page::from_page_table_indices(
@@ -250,6 +255,7 @@ impl<'a> RecursivePageTable<'a> {
         if p3_table[p3_index].is_unused() {
             match allocator.alloc() {
                 None => {
+                    info!("leave1 create_p1_if_not_exist");
                     p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
                     sfence_vma_all();
                     return Err(MapToError::FrameAllocationFailed);
@@ -263,6 +269,11 @@ impl<'a> RecursivePageTable<'a> {
                     p2_table.zero();
                 }
             }
+        } else {
+            p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
+            sfence_vma_all();
+            p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
+            sfence_vma_all();
         }
 
         let p1_table_addr = Page::from_page_table_indices(
@@ -278,6 +289,7 @@ impl<'a> RecursivePageTable<'a> {
                     sfence_vma_all();
                     p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
                     sfence_vma_all();
+                    info!("leave2 create_p1_if_not_exist");
                     return Err(MapToError::FrameAllocationFailed);
                 },
                 Some(frame) => {
@@ -293,11 +305,21 @@ impl<'a> RecursivePageTable<'a> {
                     p1_table.zero();
                 }
             }
+        } else {
+            p2_table[p2_index].flags_mut().insert(F::READABLE | F::WRITABLE);
+            sfence_vma_all();
+            p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
+            sfence_vma_all();
+            p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
+            sfence_vma_all();
+            p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
+            sfence_vma_all();
         }
+
         p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
         sfence_vma_all();
-        p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
+            p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
+            sfence_vma_all();
         p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
         sfence_vma_all();
 
@@ -306,11 +328,12 @@ impl<'a> RecursivePageTable<'a> {
 
         p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
         sfence_vma_all();
-        p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
+            p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
+            sfence_vma_all();
         p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
         sfence_vma_all();
 
+        info!("leaveS create_p1_if_not_exist");
         Ok(())
     }
 
@@ -383,7 +406,7 @@ impl<'a> RecursivePageTable<'a> {
         ret
     }
 
-    fn is_mapped(&self,
+    pub fn is_mapped(&self,
                  p4_index: usize,
                  p3_index: usize,
                  p2_index: usize,
