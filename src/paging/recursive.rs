@@ -1,30 +1,40 @@
 use super::frame_alloc::*;
-use super::page_table::*;
+use super::page_table::{*, PageTableFlags as F};
 use addr::*;
-#[macro_use]
-use log::*;
-use asm::sfence_vma;
-use asm::sfence_vma_all;
 
 pub trait Mapper {
     /// Creates a new mapping in the page table.
     ///
     /// This function might need additional physical frames to create new page tables. These
     /// frames are allocated from the `allocator` argument. At most three frames are required.
-    fn map_to<A>(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut A) -> Result<MapperFlush, MapToError>
-        where A: FrameAllocator;
+    fn map_to(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut impl FrameAllocator) -> Result<MapperFlush, MapToError>;
 
     /// Removes a mapping from the page table and returns the frame that used to be mapped.
     ///
     /// Note that no page tables or pages are deallocated.
     fn unmap(&mut self, page: Page) -> Result<(Frame, MapperFlush), UnmapError>;
 
+    /// Get the reference of the specified `page` entry
+    fn ref_entry(&mut self, page: Page) -> Result<&mut PageTableEntry, FlagUpdateError>;
+
+    /// Updates the flags of an existing mapping.
+    fn update_flags(&mut self, page: Page, flags: PageTableFlags) -> Result<MapperFlush, FlagUpdateError> {
+        self.ref_entry(page).map(|e| {
+            *e.flags_mut() = flags;
+            MapperFlush::new(page)
+        })
+    }
+
     /// Return the frame that the specified page is mapped to.
-    fn translate_page(&self, page: Page) -> Option<Frame>;
+    fn translate_page(&mut self, page: Page) -> Option<Frame> {
+        match self.ref_entry(page) {
+            Ok(e) => if e.is_unused() { None } else { Some(e.frame()) },
+            Err(_) => None,
+        }
+    }
 
     /// Maps the given frame to the virtual page with the same address.
-    fn identity_map<A>(&mut self, frame: Frame, flags: PageTableFlags, allocator: &mut A) -> Result<MapperFlush, MapToError>
-        where A: FrameAllocator,
+    fn identity_map(&mut self, frame: Frame, flags: PageTableFlags, allocator: &mut impl FrameAllocator) -> Result<MapperFlush, MapToError>
     {
         let page = Page::of_addr(VirtAddr::new(frame.start_address().as_usize()));
         self.map_to(page, frame, flags, allocator)
@@ -42,8 +52,7 @@ impl MapperFlush {
 
     /// Flush the page from the TLB to ensure that the newest mapping is used.
     pub fn flush(self) {
-        use asm::sfence_vma;
-        sfence_vma(0, self.0.start_address());
+        crate::asm::sfence_vma(0, self.0.start_address());
     }
 
     /// Don't flush the TLB and silence the “must be used” warning.
@@ -75,14 +84,57 @@ pub enum UnmapError {
     InvalidFrameAddress(PhysAddr),
 }
 
+/// An error indicating that an `update_flags` call failed.
+#[derive(Debug)]
+pub enum FlagUpdateError {
+    /// The given page is not mapped to a physical frame.
+    PageNotMapped,
+}
+
+struct TempMap<'a> {
+    entry: &'a mut PageTableEntry,
+    pt_addr: VirtAddr,
+}
+
+impl<'a> TempMap<'a> {
+    #[cfg(target_arch = "riscv32")]
+    unsafe fn new(rec_idx: usize) -> Self {
+        TempMap {
+            entry: VirtAddr::from_page_table_indices(rec_idx, rec_idx + 1, (rec_idx + 2) * 4).as_mut(),
+            pt_addr: VirtAddr::from_page_table_indices(rec_idx, rec_idx + 2, 0),
+        }
+    }
+    #[cfg(target_arch = "riscv64")]
+    unsafe fn new(rec_idx: usize) -> Self {
+        TempMap {
+            entry: VirtAddr::from_page_table_indices(rec_idx, rec_idx, rec_idx, rec_idx + 1, (rec_idx + 2) * 8).as_mut(),
+            pt_addr: VirtAddr::from_page_table_indices(rec_idx, rec_idx, rec_idx, rec_idx + 2, 0),
+        }
+    }
+    fn map(&mut self, frame: Frame) -> &mut PageTable {
+        self.entry.set(frame, F::VALID | F::READABLE | F::WRITABLE);
+        crate::asm::sfence_vma(0, self.pt_addr.clone());
+        unsafe { self.pt_addr.as_mut() }
+    }
+}
+
 /// A recursive page table is a last level page table with an entry mapped to the table itself.
 ///
 /// This struct implements the `Mapper` trait.
 pub struct RecursivePageTable<'a> {
-    // TODO: because of riscv64's preliminary design,
-    // these fields were (shouldn't be) made public
-    pub root_table: &'a mut PageTable,
-    pub recursive_index: usize,
+    root_table: &'a mut PageTable,
+    /// Recursive index as `R`
+    ///
+    /// `R`:   point to root frame, flags: V
+    /// `R+1`: point to root frame, flags: V+R+W
+    /// `R+2`: point to temp frame, flags: V+R+W
+    ///
+    /// At any time, we can access root page table through (R, R, ..., R+1, 0).
+    /// To access a temp frame, first set `root[R+2]` pointing to the frame with R+W+X,
+    /// then we can access the frame through (R, R, ..., R+2, 0).
+    rec_idx: usize,
+    ///
+    temp_map: TempMap<'a>,
 }
 
 /// An error indicating that the given page table is not recursively mapped.
@@ -104,23 +156,23 @@ impl<'a> RecursivePageTable<'a> {
     /// Otherwise `Err(NotRecursivelyMapped)` is returned.
     pub fn new(table: &'a mut PageTable) -> Result<Self, NotRecursivelyMapped> {
         let page = Page::of_addr(VirtAddr::new(table as *const _ as usize));
-        let recursive_index = page.p2_index();
+        let rec_idx = page.p2_index();
 
-        use register::satp;
-        type F = PageTableFlags;
-        if page.p1_index() != recursive_index + 1
-            || satp::read().frame() != table[recursive_index].frame()
-            || satp::read().frame() != table[recursive_index + 1].frame()
-            || !table[recursive_index].flags().contains(F::VALID)
-            ||  table[recursive_index].flags().contains(F::READABLE | F::WRITABLE)
-            || !table[recursive_index + 1].flags().contains(F::VALID | F::READABLE | F::WRITABLE)
+        let satp_frame = crate::register::satp::read().frame();
+        if page.p1_index() != rec_idx + 1
+            || satp_frame != table[rec_idx].frame()
+            || satp_frame != table[rec_idx + 1].frame()
+            || !table[rec_idx].flags().contains(F::VALID)
+            ||  table[rec_idx].flags().contains(F::READABLE | F::WRITABLE)
+            || !table[rec_idx + 1].flags().contains(F::VALID | F::READABLE | F::WRITABLE)
         {
             return Err(NotRecursivelyMapped);
         }
 
         Ok(RecursivePageTable {
             root_table: table,
-            recursive_index,
+            rec_idx,
+            temp_map: unsafe { TempMap::new(rec_idx) },
         })
     }
 
@@ -130,67 +182,47 @@ impl<'a> RecursivePageTable<'a> {
     pub unsafe fn new_unchecked(table: &'a mut PageTable, recursive_index: usize) -> Self {
         RecursivePageTable {
             root_table: table,
-            recursive_index,
+            rec_idx: recursive_index,
+            temp_map: TempMap::new(recursive_index),
         }
     }
 
-    fn create_p1_if_not_exist<A>(&mut self, p2_index: usize, allocator: &mut A) -> Result<(), MapToError>
-        where A: FrameAllocator,
-    {
-        assert_ne!(p2_index, self.recursive_index, "cannot create_p1 with p2_index=recursive_index");
-        assert_ne!(p2_index, self.recursive_index + 1, "cannot create_p1 with p2_index=recursive_index + !");
-        type F = PageTableFlags;
+    fn create_p1_if_not_exist(&mut self, p2_index: usize, allocator: &mut impl FrameAllocator) -> Result<&mut PageTable, MapToError> {
+        assert!(p2_index < self.rec_idx || p2_index > self.rec_idx + 2, "invalid p2_index");
         if self.root_table[p2_index].is_unused() {
-            if let Some(frame) = allocator.alloc() {
-                self.root_table[p2_index].set(frame, F::VALID);
-                self.edit_p1(p2_index, |p1| p1.zero());
-            } else {
-                return Err(MapToError::FrameAllocationFailed);
-            }
+            let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
+            self.root_table[p2_index].set(frame.clone(), F::VALID);
+            let p1_table = self.temp_map.map(frame);
+            p1_table.zero();
+            Ok(p1_table)
+        } else {
+            let frame = self.root_table[p2_index].frame();
+            let p1_table = self.temp_map.map(frame);
+            Ok(p1_table)
         }
-        Ok(())
-    }
-
-    /// Edit a p1 page.
-    /// During the editing, the flag of entry `p2[p2_index]` is temporarily set to V+R+W.
-    fn edit_p1<F, T>(&mut self, p2_index: usize, f: F) -> T where F: FnOnce(&mut PageTable) -> T {
-        type F = PageTableFlags;
-        let flags = self.root_table[p2_index].flags_mut();
-        assert_ne!(p2_index, self.recursive_index, "can not edit recursive index");
-        assert_ne!(p2_index, self.recursive_index + 1, "can not edit recursive index");
-        assert!(flags.contains(F::VALID), "try to edit a nonexistent p1 table");
-        assert!(!flags.contains(F::READABLE) && !flags.contains(F::WRITABLE), "try to edit a 4M page as p1 table");
-        flags.insert(F::READABLE | F::WRITABLE);
-        let p1 = Page::from_page_table_indices(self.recursive_index, p2_index);
-        let p1 = unsafe{ &mut *(p1.start_address().as_usize() as *mut PageTable) };
-        let ret = f(p1);
-        flags.remove(F::READABLE | F::WRITABLE);
-        ret
     }
 }
 
-// TODO: make implementation cleverer. for now gofy design is used.
 #[cfg(target_arch = "riscv64")]
 impl<'a> RecursivePageTable<'a> {
     pub fn new(table: &'a mut PageTable) -> Result<Self, NotRecursivelyMapped> {
         let page = Page::of_addr(VirtAddr::new(table as *const _ as usize));
-        let recursive_index = page.p4_index();
+        let rec_idx = page.p4_index();
 
         use register::satp;
-        type F = PageTableFlags;
-        if page.p3_index() != recursive_index
-            || page.p2_index() != recursive_index
-            || page.p1_index() != recursive_index + 1
+        if page.p3_index() != rec_idx
+            || page.p2_index() != rec_idx
+            || page.p1_index() != rec_idx + 1
                 // Denote recursive_index with l.
                 // Require the virtaddr of the root page table to be
                 // (p4=l, p3=l, p2=l, p1=l+1, p0=0)
-            || satp::read().frame() != table[recursive_index].frame()
-            || satp::read().frame() != table[recursive_index + 1].frame()
+            || satp::read().frame() != table[rec_idx].frame()
+            || satp::read().frame() != table[rec_idx + 1].frame()
                 // Require that table[l] and table[l+1] maps back to table
-            || !table[recursive_index].flags().contains(F::VALID)
-            ||  table[recursive_index].flags().contains(F::READABLE | F::WRITABLE)
+            || !table[rec_idx].flags().contains(F::VALID)
+            ||  table[rec_idx].flags().contains(F::READABLE | F::WRITABLE)
                 // Require that table[l] must be valid, and points to a page table.
-            || !table[recursive_index + 1].flags().contains(F::VALID | F::READABLE | F::WRITABLE)
+            || !table[rec_idx + 1].flags().contains(F::VALID | F::READABLE | F::WRITABLE)
                 // Require that table[l+1] must be valid, and points to a page.
         {
             return Err(NotRecursivelyMapped);
@@ -198,427 +230,161 @@ impl<'a> RecursivePageTable<'a> {
 
         Ok(RecursivePageTable {
             root_table: table,
-            recursive_index,
+            rec_idx: rec_idx,
+            temp_map: unsafe { TempMap::new(rec_idx) },
         })
     }
 
     pub unsafe fn new_unchecked(table: &'a mut PageTable, recursive_index: usize) -> Self {
         RecursivePageTable {
             root_table: table,
-            recursive_index,
+            rec_idx: recursive_index,
+            temp_map: TempMap::new(recursive_index),
         }
     }
 
-    // TODO: make it look better. reduce the stupid fences.
-    fn create_p1_if_not_exist<A>(&mut self,
-                                 p4_index: usize,
-                                 p3_index: usize,
-                                 p2_index: usize,
-                                 allocator: &mut A)
-        -> Result<(), MapToError>
-        where A: FrameAllocator,
+    fn create_p1_if_not_exist(&mut self, page: Page, allocator: &mut impl FrameAllocator)
+        -> Result<&mut PageTable, MapToError>
     {
-        assert_ne!(p4_index, self.recursive_index, "cannot create_p1 with p2_index=recursive_index");
-        assert_ne!(p4_index, self.recursive_index + 1, "cannot create_p1 with p2_index=recursive_index + !");
-
-        type F = PageTableFlags;
-        let p4_table = &mut self.root_table;
-
-        let p3_table_addr = Page::from_page_table_indices(
-            self.recursive_index, self.recursive_index, self.recursive_index, p4_index).
-            start_address();
-        let p3_table: &mut PageTable = unsafe { &mut *(p3_table_addr.as_usize() as *mut PageTable) };
-        if p4_table[p4_index].is_unused() {
-            match allocator.alloc() {
-                None => {
-                    return Err(MapToError::FrameAllocationFailed);
-                }
-                Some(frame) => {
-                    p4_table[p4_index].set(frame, F::VALID);
-                    p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-                    sfence_vma_all();
-                    p3_table.zero();
-                    sfence_vma_all();
-                }
-            }
-        } else {
-            p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-        }
-
-        let p2_table_addr = Page::from_page_table_indices(
-            self.recursive_index, self.recursive_index, p4_index, p3_index).
-            start_address();
-        let p2_table: &mut PageTable = unsafe { &mut *(p2_table_addr.as_usize() as *mut PageTable) };
-        if p3_table[p3_index].is_unused() {
-            match allocator.alloc() {
-                None => {
-                    p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-                    sfence_vma_all();
-                    return Err(MapToError::FrameAllocationFailed);
-                },
-                Some(frame) => {
-                    p3_table[p3_index].set(frame, F::VALID);
-                    p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-                    sfence_vma_all();
-                    p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-                    sfence_vma_all();
-                    p2_table.zero();
-                }
-            }
-        } else {
-            p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-        }
-
-        let p1_table_addr = Page::from_page_table_indices(
-            self.recursive_index, p4_index, p3_index, p2_index).
-            start_address();
-        let p1_table: &mut PageTable = unsafe { &mut *(p1_table_addr.as_usize() as *mut PageTable) };
-        if p2_table[p2_index].is_unused() {
-            match allocator.alloc() {
-                None => {
-                    p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-                    sfence_vma_all();
-                    p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-                    sfence_vma_all();
-                    p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-                    sfence_vma_all();
-                    return Err(MapToError::FrameAllocationFailed);
-                },
-                Some(frame) => {
-                    p2_table[p2_index].set(frame, F::VALID);
-                    p2_table[p2_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-                    sfence_vma_all();
-                    p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-                    sfence_vma_all();
-                    p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-                    sfence_vma_all();
-                    p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-                    sfence_vma_all();
-                    p1_table.zero();
-                }
-            }
-        } else {
-            p2_table[p2_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-        }
-
-        p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-            p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-        p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-
-        p2_table[p2_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-
-        p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-            p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-        p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-
-        Ok(())
-    }
-
-    fn edit_p1<F, T>(&mut self,
-                     p4_index: usize,
-                     p3_index: usize,
-                     p2_index: usize,
-                     f: F) -> T
-        where F: FnOnce(&mut PageTable) -> T
-    {
-        assert!(p4_index != self.recursive_index, "can not edit recursive index");
-        assert!(p4_index != self.recursive_index + 1, "can not edit recursive index + 1");
-        type F = PageTableFlags;
+        assert!(page.p4_index() < self.rec_idx || page.p4_index() > self.rec_idx + 2, "invalid p4_index");
 
         let p4_table = &mut self.root_table;
 
-        assert!(!p4_table[p4_index].is_unused(), "edit_p1: nonexistent from p4_table");
-        let p3_table: &mut PageTable = unsafe { &mut *(Page::from_page_table_indices(
-            self.recursive_index,
-            self.recursive_index,
-            self.recursive_index,
-            p4_index).start_address().as_usize() as *mut PageTable) };
+        let p3_table = if p4_table[page.p4_index()].is_unused() {
+            let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
+            p4_table[page.p4_index()].set(frame, F::VALID);
+            // NLL: auto release `&mut p4_table` aka `&mut self.temp_map` here
+            let table = self.temp_map.map(frame);
+            table.zero();
+            table
+        } else {
+            let frame = p4_table[page.p4_index()].frame();
+            self.temp_map.map(frame)
+        };
 
-        p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        assert!(!p3_table[p3_index].is_unused(), "edit_p1: nonexistent from p3_table");
-        let p2_table: &mut PageTable = unsafe { &mut *(Page::from_page_table_indices(
-            self.recursive_index,
-            self.recursive_index,
-            p4_index,
-            p3_index).start_address().as_usize() as *mut PageTable) };
+        let p2_table = if p3_table[page.p3_index()].is_unused() {
+            let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
+            p3_table[page.p3_index()].set(frame, F::VALID);
+            let table = self.temp_map.map(frame);
+            table.zero();
+            table
+        } else {
+            let frame = p3_table[page.p3_index()].frame();
+            self.temp_map.map(frame)
+        };
 
-        p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        assert!(!p2_table[p2_index].is_unused(), "edit_p1: nonexistent from p2_table");
-        let p1_table: &mut PageTable = unsafe { &mut *(Page::from_page_table_indices(
-            self.recursive_index,
-            p4_index,
-            p3_index,
-            p2_index).start_address().as_usize() as *mut PageTable) };
+        let p1_table = if p2_table[page.p2_index()].is_unused() {
+            let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
+            p2_table[page.p2_index()].set(frame, F::VALID);
+            let table = self.temp_map.map(frame);
+            table.zero();
+            table
+        } else {
+            let frame = p2_table[page.p2_index()].frame();
+            self.temp_map.map(frame)
+        };
 
-        p2_table[p2_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-
-        let ret = f(p1_table);
-
-        p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p2_table[p2_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-
-        ret
+        Ok(p1_table)
     }
 
-    pub fn is_mapped(&self,
-                 p4_index: usize,
-                 p3_index: usize,
-                 p2_index: usize,
-                 p1_index: usize)
-        -> bool
+    fn ref_p1(&mut self, page: Page) -> Option<&mut PageTable>
     {
-        assert_ne!(p4_index, self.recursive_index, "is_mapped with p4_index == recursive_index?");
-        assert_ne!(p4_index, self.recursive_index + 1, "is_mapped with p4_index == recursive_index + 1?");
+        assert!(page.p4_index() < self.rec_idx || page.p4_index() > self.rec_idx + 2, "invalid p4_index");
 
-        type F = PageTableFlags;
+        let p4_table = &mut self.root_table;
 
-        let self_mut = unsafe { &mut *(self as *const _ as *mut Self) };
-
-        let p4_table = &mut self_mut.root_table;
-
-        let p3_table: &mut PageTable = if p4_table[p4_index].is_unused() {
-            return false;
-        } else {
-            let p3_table = unsafe { &mut *(Page::from_page_table_indices(
-                self.recursive_index,
-                self.recursive_index,
-                self.recursive_index,
-                p4_index).start_address().as_usize() as *mut PageTable) };
-            p3_table
-        };
-
-        p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        let p2_table: &mut PageTable = if p3_table[p3_index].is_unused() {
-            p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            return false;
-        } else {
-            let p2_table = unsafe { &mut *(Page::from_page_table_indices(
-                self.recursive_index,
-                self.recursive_index,
-                p4_index,
-                p3_index).start_address().as_usize() as *mut PageTable) };
-            p2_table
-        };
-
-        p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        let p1_table: &mut PageTable = if p2_table[p2_index].is_unused() {
-            p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            return false;
-        } else {
-            let p1_table = unsafe { &mut *(Page::from_page_table_indices(
-                self.recursive_index,
-                p4_index,
-                p3_index,
-                p2_index).start_address().as_usize() as *mut PageTable) };
-            p1_table
-        };
-
-        p2_table[p2_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        if p1_table[p1_index].is_unused() {
-            p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p2_table[p2_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-            sfence_vma_all();
-            return false;
+        if p4_table[page.p4_index()].is_unused() {
+            return None;
         }
+        let p3_table = {
+            let frame = p4_table[page.p4_index()].frame();
+            self.temp_map.map(frame)
+        };
 
-        p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p3_table[p3_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p2_table[p2_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().insert(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p3_table[p3_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        p4_table[p4_index].flags_mut().remove(F::READABLE | F::WRITABLE);
-        sfence_vma_all();
-        return true;
+        if p3_table[page.p3_index()].is_unused() {
+            return None;
+        }
+        let p2_table = {
+            let frame = p3_table[page.p3_index()].frame();
+            self.temp_map.map(frame)
+        };
+
+        if p2_table[page.p2_index()].is_unused() {
+            return None;
+        }
+        let p1_table = {
+            let frame = p2_table[page.p2_index()].frame();
+            self.temp_map.map(frame)
+        };
+
+        Some(p1_table)
     }
 }
 
 #[cfg(target_arch = "riscv32")]
 impl<'a> Mapper for RecursivePageTable<'a> {
-    fn map_to<A>(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut A) -> Result<MapperFlush, MapToError>
-        where A: FrameAllocator,
+    fn map_to(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut impl FrameAllocator)
+        -> Result<MapperFlush, MapToError>
     {
-        use self::PageTableFlags as Flags;
-        self.create_p1_if_not_exist(page.p2_index(), allocator)?;
-        self.edit_p1(page.p2_index(), |p1| {
-            if !p1[page.p1_index()].is_unused() {
-                return Err(MapToError::PageAlreadyMapped);
-            }
-            p1[page.p1_index()].set(frame, flags);
-            Ok(MapperFlush::new(page))
-        })
+        let p1_table = self.create_p1_if_not_exist(page.p2_index(), allocator)?;
+        if !p1_table[page.p1_index()].is_unused() {
+            return Err(MapToError::PageAlreadyMapped);
+        }
+        p1_table[page.p1_index()].set(frame, flags);
+        Ok(MapperFlush::new(page))
     }
 
     fn unmap(&mut self, page: Page) -> Result<(Frame, MapperFlush), UnmapError> {
-        use self::PageTableFlags as Flags;
         if self.root_table[page.p2_index()].is_unused() {
             return Err(UnmapError::PageNotMapped);
         }
-        self.edit_p1(page.p2_index(), |p1| {
-            let p1_entry = &mut p1[page.p1_index()];
-            if !p1_entry.flags().contains(Flags::VALID) {
-                return Err(UnmapError::PageNotMapped);
-            }
-            let frame = p1_entry.frame();
-            p1_entry.set_unused();
-            Ok((frame, MapperFlush::new(page)))
-        })
+        let p1_frame = self.root_table[page.p2_index()].frame();
+        let p1_table = self.temp_map.map(p1_frame);
+        let p1_entry = &mut p1_table[page.p1_index()];
+        if !p1_entry.flags().contains(F::VALID) {
+            return Err(UnmapError::PageNotMapped);
+        }
+        let frame = p1_entry.frame();
+        p1_entry.set_unused();
+        Ok((frame, MapperFlush::new(page)))
     }
 
-    fn translate_page(&self, page: Page) -> Option<Frame> {
+    fn ref_entry(&mut self, page: Page) -> Result<&mut PageTableEntry, FlagUpdateError> {
         if self.root_table[page.p2_index()].is_unused() {
-            return None;
+            return Err(FlagUpdateError::PageNotMapped);
         }
-        let self_mut = unsafe{ &mut *(self as *const _ as *mut Self) };
-        self_mut.edit_p1(page.p2_index(), |p1| {
-            let p1_entry = &p1[page.p1_index()];
-            if p1_entry.is_unused() {
-                return None;
-            }
-            Some(p1_entry.frame())
-        })
+        let p1_frame = self.root_table[page.p2_index()].frame();
+        let p1_table = self.temp_map.map(p1_frame);
+        Ok(&mut p1_table[page.p1_index()])
     }
 }
 
 #[cfg(target_arch = "riscv64")]
 impl<'a> Mapper for RecursivePageTable<'a> {
-    fn map_to<A>(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut A) -> Result<MapperFlush, MapToError>
-        where A: FrameAllocator,
+    fn map_to(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut impl FrameAllocator)
+        -> Result<MapperFlush, MapToError>
     {
-        info!("recursive table map_to: {:x} -> {:x}", frame.start_address().as_usize(), page.start_address().as_usize());
-        use self::PageTableFlags as Flags;
-        self.create_p1_if_not_exist(
-            page.p4_index(),
-            page.p3_index(),
-            page.p2_index(),
-            allocator)?;
-        let rv = self.edit_p1(
-            page.p4_index(),
-            page.p3_index(),
-            page.p2_index(),
-            |p1| {
-                if !p1[page.p1_index()].is_unused() {
-                    return Err(MapToError::PageAlreadyMapped);
-                }
-                p1[page.p1_index()].set(frame, flags);
-                Ok(MapperFlush::new(page))
-            });
-        rv
+        let p1 = self.create_p1_if_not_exist(page, allocator)?;
+        if !p1[page.p1_index()].is_unused() {
+            return Err(MapToError::PageAlreadyMapped);
+        }
+        p1[page.p1_index()].set(frame, flags);
+        Ok(MapperFlush::new(page))
     }
 
     fn unmap(&mut self, page: Page) -> Result<(Frame, MapperFlush), UnmapError> {
-        use self::PageTableFlags as Flags;
-        if ! self.is_mapped(page.p4_index(), page.p3_index(),
-            page.p2_index(), page.p1_index()) {
+        let p1_table = self.ref_p1(page).ok_or(UnmapError::PageNotMapped)?;
+        let p1_entry = &mut p1_table[page.p1_index()];
+        if !p1_entry.flags().contains(F::VALID) {
             return Err(UnmapError::PageNotMapped);
         }
-        self.edit_p1(
-            page.p4_index(),
-            page.p3_index(),
-            page.p2_index(),
-            |p1| {
-                let p1_entry = &mut p1[page.p1_index()];
-                if !p1_entry.flags().contains(Flags::VALID) {
-                    return Err(UnmapError::PageNotMapped);
-                }
-                let frame = p1_entry.frame();
-                p1_entry.set_unused();
-                Ok((frame, MapperFlush::new(page)))
-            })
+        let frame = p1_entry.frame();
+        p1_entry.set_unused();
+        Ok((frame, MapperFlush::new(page)))
     }
 
-    fn translate_page(&self, page: Page) -> Option<Frame> {
-        if ! self.is_mapped(page.p4_index(), page.p3_index(),
-            page.p2_index(), page.p1_index()) {
-            return None;
-        }
-
-        let self_mut = unsafe { &mut *(self as *const _ as *mut Self) };
-        self_mut.edit_p1(
-            page.p4_index(),
-            page.p3_index(),
-            page.p2_index(),
-            |p1| {
-                let p1_entry = &p1[page.p1_index()];
-                if p1_entry.is_unused() {
-                    return None;
-                }
-                Some(p1_entry.frame())
-            })
+    fn ref_entry(&mut self, page: Page) -> Result<&mut PageTableEntry, FlagUpdateError> {
+        let p1_table = self.ref_p1(page).ok_or(FlagUpdateError::PageNotMapped)?;
+        Ok(&mut p1_table[page.p1_index()])
     }
 }
