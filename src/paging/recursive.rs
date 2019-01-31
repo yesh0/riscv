@@ -105,10 +105,15 @@ impl<'a> TempMap<'a> {
         }
     }
     #[cfg(target_arch = "riscv64")]
-    unsafe fn new(rec_idx: usize) -> Self {
+    unsafe fn new(rec_idx: usize, type_: PageTableType) -> Self {
+        let p4_idx = match type_ {
+            PageTableType::Sv39 => if rec_idx >> 8 == 0 { 0o000 } else { 0o777 },
+            PageTableType::Sv48 => rec_idx,
+            _ => panic!("invalid page table type"),
+        };
         TempMap {
-            entry: VirtAddr::from_page_table_indices(rec_idx, rec_idx, rec_idx, rec_idx + 1, (rec_idx + 2) * 8).as_mut(),
-            pt_addr: VirtAddr::from_page_table_indices(rec_idx, rec_idx, rec_idx, rec_idx + 2, 0),
+            entry: VirtAddr::from_page_table_indices(p4_idx, rec_idx, rec_idx, rec_idx + 1, (rec_idx + 2) * 8).as_mut(),
+            pt_addr: VirtAddr::from_page_table_indices(p4_idx, rec_idx, rec_idx, rec_idx + 2, 0),
         }
     }
     fn map(&mut self, frame: Frame) -> &mut PageTable {
@@ -116,6 +121,11 @@ impl<'a> TempMap<'a> {
         crate::asm::sfence_vma(0, self.pt_addr.clone());
         unsafe { self.pt_addr.as_mut() }
     }
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum PageTableType {
+    Sv32 = 2, Sv39 = 3, Sv48 = 4,
 }
 
 /// A recursive page table is a last level page table with an entry mapped to the table itself.
@@ -135,6 +145,8 @@ pub struct RecursivePageTable<'a> {
     rec_idx: usize,
     ///
     temp_map: TempMap<'a>,
+    /// Page table type
+    type_: PageTableType,
 }
 
 /// An error indicating that the given page table is not recursively mapped.
@@ -173,6 +185,7 @@ impl<'a> RecursivePageTable<'a> {
             root_table: table,
             rec_idx,
             temp_map: unsafe { TempMap::new(rec_idx) },
+            type_: PageTableType::Sv32
         })
     }
 
@@ -184,6 +197,7 @@ impl<'a> RecursivePageTable<'a> {
             root_table: table,
             rec_idx: recursive_index,
             temp_map: TempMap::new(recursive_index),
+            type_: PageTableType::Sv32
         }
     }
 
@@ -205,9 +219,13 @@ impl<'a> RecursivePageTable<'a> {
 
 #[cfg(target_arch = "riscv64")]
 impl<'a> RecursivePageTable<'a> {
-    pub fn new(table: &'a mut PageTable) -> Result<Self, NotRecursivelyMapped> {
+    pub fn new(table: &'a mut PageTable, type_: PageTableType) -> Result<Self, NotRecursivelyMapped> {
         let page = Page::of_addr(VirtAddr::new(table as *const _ as usize));
-        let rec_idx = page.p4_index();
+        let rec_idx = match type_ {
+            PageTableType::Sv39 => page.p3_index(),
+            PageTableType::Sv48 => page.p4_index(),
+            _ => panic!("invalid page table type"),
+        };
 
         use register::satp;
         if page.p3_index() != rec_idx
@@ -230,16 +248,18 @@ impl<'a> RecursivePageTable<'a> {
 
         Ok(RecursivePageTable {
             root_table: table,
-            rec_idx: rec_idx,
-            temp_map: unsafe { TempMap::new(rec_idx) },
+            rec_idx,
+            temp_map: unsafe { TempMap::new(rec_idx, type_) },
+            type_,
         })
     }
 
-    pub unsafe fn new_unchecked(table: &'a mut PageTable, recursive_index: usize) -> Self {
+    pub unsafe fn new_unchecked(table: &'a mut PageTable, recursive_index: usize, type_: PageTableType) -> Self {
         RecursivePageTable {
             root_table: table,
             rec_idx: recursive_index,
-            temp_map: TempMap::new(recursive_index),
+            temp_map: TempMap::new(recursive_index, type_),
+            type_,
         }
     }
 
@@ -247,10 +267,12 @@ impl<'a> RecursivePageTable<'a> {
         -> Result<&mut PageTable, MapToError>
     {
         assert!(page.p4_index() < self.rec_idx || page.p4_index() > self.rec_idx + 2, "invalid p4_index");
-
         let p4_table = &mut self.root_table;
 
-        let p3_table = if p4_table[page.p4_index()].is_unused() {
+        let p3_table = if self.type_ == PageTableType::Sv39 {
+            assert!(page.p3_index() < self.rec_idx || page.p3_index() > self.rec_idx + 2, "invalid p3_index");
+            &mut self.root_table
+        } else if p4_table[page.p4_index()].is_unused() {
             let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
             p4_table[page.p4_index()].set(frame, F::VALID);
             // NLL: auto release `&mut p4_table` aka `&mut self.temp_map` here
@@ -293,10 +315,13 @@ impl<'a> RecursivePageTable<'a> {
 
         let p4_table = &mut self.root_table;
 
-        if p4_table[page.p4_index()].is_unused() {
-            return None;
-        }
-        let p3_table = {
+        let p3_table = if self.type_ == PageTableType::Sv39 {
+            assert!(page.p3_index() < self.rec_idx || page.p3_index() > self.rec_idx + 2, "invalid p3_index");
+            &mut self.root_table
+        } else {
+            if p4_table[page.p4_index()].is_unused() {
+                return None;
+            }
             let frame = p4_table[page.p4_index()].frame();
             self.temp_map.map(frame)
         };
