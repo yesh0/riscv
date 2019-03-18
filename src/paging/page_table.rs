@@ -24,7 +24,7 @@ impl PageTable {
     }
 
     /// Setup identity map for the page with first level page table index.
-    #[cfg(target_pointer_width = "32")]
+    #[cfg(riscv32)]
     pub fn map_identity(&mut self, p2idx: usize, flags: PageTableFlags) {
         self.entries[p2idx].set(Frame::of_addr(PhysAddr::new(p2idx << 22)), flags);
     }
@@ -94,9 +94,9 @@ impl Debug for PageTableEntry {
     }
 }
 
-#[cfg(target_pointer_width = "64")]
+#[cfg(riscv64)]
 const ENTRY_COUNT: usize = 1 << 9;
-#[cfg(target_pointer_width = "32")]
+#[cfg(riscv32)]
 const ENTRY_COUNT: usize = 1 << 10;
 
 bitflags! {

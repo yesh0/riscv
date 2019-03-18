@@ -1,4 +1,4 @@
-//! RISCV CSR's
+//! RISC-V CSR's
 //!
 //! The following registers are not available on 64-bit implementations.
 //!
@@ -13,6 +13,8 @@
 #[macro_use]
 mod macros;
 
+pub mod fcsr;
+
 pub mod mcause;
 pub mod mcycle;
 pub mod mcycleh;
@@ -25,7 +27,6 @@ pub mod misa;
 pub mod mstatus;
 pub mod mtvec;
 pub mod mvendorid;
-pub mod mscratch;
 
 pub mod sstatus;
 pub mod stvec;

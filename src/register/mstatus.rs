@@ -80,17 +80,12 @@ impl Mstatus {
     }
 
     #[inline]
-    pub fn xie(&self) -> bool {
-        self.mie()
-    }
-
-    #[inline]
-    pub fn set_xpie(&mut self, val: bool) {
+    pub fn set_mpie(&mut self, val: bool) {
         self.bits.set_bit(7, val);
     }
 
     #[inline]
-    pub fn set_xie(&mut self, val: bool) {
+    pub fn set_mie(&mut self, val: bool) {
         self.bits.set_bit(3, val);
     }
 
@@ -101,93 +96,35 @@ impl Mstatus {
 }
 
 
-/// Reads the CSR
-#[inline]
-pub fn read() -> Mstatus {
-    match () {
-        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-        () => {
-            let r: usize;
-            unsafe {
-                asm!("csrrs $0, 0x300, x0" : "=r"(r) ::: "volatile");
-            }
-            Mstatus { bits: r }
-        }
-        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
-        () => unimplemented!(),
-    }
-}
+read_csr_as!(Mstatus, 0x300, __read_mstatus);
+set!(0x300, __set_mstatus);
+clear!(0x300, __clear_mstatus);
 
-/// Sets the CSR
-#[cfg_attr(not(any(target_arch = "riscv32", target_arch = "riscv64")), allow(unused_variables))]
-#[inline]
-unsafe fn set(bits: usize) {
-    match () {
-        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-        () => asm!("csrrs x0, 0x300, $0" :: "r"(bits) :: "volatile"),
-        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
-        () => unimplemented!(),
-    }
-}
-
-/// Clears the CSR
-#[cfg_attr(not(any(target_arch = "riscv32", target_arch = "riscv64")), allow(unused_variables))]
-#[inline]
-unsafe fn clear(bits: usize) {
-    match () {
-        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-        () => asm!("csrrc x0, 0x300, $0" :: "r"(bits) :: "volatile"),
-        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
-        () => unimplemented!(),
-    }
-}
-
-macro_rules! set_csr {
-    ($set_field:ident, $e:expr) => {
-        #[inline]
-        pub unsafe fn $set_field() {
-            set($e);
-        }
-    }
-}
-
-macro_rules! clear_csr {
-    ($clear_field:ident, $e:expr) => {
-        #[inline]
-        pub unsafe fn $clear_field() {
-            clear($e);
-        }
-    }
-}
-
-macro_rules! set_clear_csr {
-    ($set_field:ident, $clear_field:ident, $e:expr) => {
-        set_csr!($set_field, $e);
-        clear_csr!($clear_field, $e);
-    }
-}
-
-/// User Interrupt Enable
-set_clear_csr!(set_uie, clear_uie, 1 << 0);
-/// Supervisor Interrupt Enable
-set_clear_csr!(set_sie, clear_sie, 1 << 1);
-/// Machine Interrupt Enable
-set_clear_csr!(set_mie, clear_mie, 1 << 3);
-set_clear_csr!(set_xie, clear_xie, 1 << 3);
-/// User Previous Interrupt Enable
-set_csr!(set_upie, 1 << 4);
-/// Supervisor Previous Interrupt Enable
-set_csr!(set_spie, 1 << 5);
-/// Machine Previous Interrupt Enable
-set_csr!(set_mpie, 1 << 7);
-set_csr!(set_xpie, 1 << 7);
+set_clear_csr!(
+    /// User Interrupt Enable
+    , set_uie, clear_uie, 1 << 0);
+set_clear_csr!(
+    /// Supervisor Interrupt Enable
+    , set_sie, clear_sie, 1 << 1);
+set_clear_csr!(
+    /// Machine Interrupt Enable
+    , set_mie, clear_mie, 1 << 3);
+set_csr!(
+    /// User Previous Interrupt Enable
+    , set_upie, 1 << 4);
+set_csr!(
+    /// Supervisor Previous Interrupt Enable
+    , set_spie, 1 << 5);
+set_csr!(
+    /// Machine Previous Interrupt Enable
+    , set_mpie, 1 << 7);
 /// Supervisor Previous Privilege Mode
 #[inline]
 pub unsafe fn set_spp(spp: SPP) {
-    set((spp as usize) << 8);
+    _set((spp as usize) << 8);
 }
 /// Machine Previous Privilege Mode
 #[inline]
 pub unsafe fn set_mpp(mpp: MPP) {
-    set((mpp as usize) << 11);
+    _set((mpp as usize) << 11);
 }

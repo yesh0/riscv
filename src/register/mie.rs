@@ -1,5 +1,7 @@
 //! mie register
 
+use bit_field::BitField;
+
 /// mie register
 #[derive(Clone, Copy, Debug)]
 pub struct Mie {
@@ -16,139 +18,86 @@ impl Mie {
     /// User Software Interrupt Enable
     #[inline]
     pub fn usoft(&self) -> bool {
-        self.bits & (1 << 0) == 1 << 0
+        self.bits.get_bit(0)
     }
 
     /// Supervisor Software Interrupt Enable
     #[inline]
     pub fn ssoft(&self) -> bool {
-        self.bits & (1 << 1) == 1 << 1
+        self.bits.get_bit(1)
     }
 
     /// Machine Software Interrupt Enable
     #[inline]
     pub fn msoft(&self) -> bool {
-        self.bits & (1 << 3) == 1 << 3
+        self.bits.get_bit(3)
     }
 
     /// User Timer Interrupt Enable
     #[inline]
     pub fn utimer(&self) -> bool {
-        self.bits & (1 << 4) == 1 << 4
+        self.bits.get_bit(4)
     }
 
     /// Supervisor Timer Interrupt Enable
     #[inline]
     pub fn stimer(&self) -> bool {
-        self.bits & (1 << 5) == 1 << 5
+        self.bits.get_bit(5)
     }
 
     /// Machine Timer Interrupt Enable
     #[inline]
     pub fn mtimer(&self) -> bool {
-        self.bits & (1 << 7) == 1 << 7
+        self.bits.get_bit(7)
     }
 
     /// User External Interrupt Enable
     #[inline]
     pub fn uext(&self) -> bool {
-        self.bits & (1 << 8) == 1 << 8
+        self.bits.get_bit(8)
     }
 
     /// Supervisor External Interrupt Enable
     #[inline]
     pub fn sext(&self) -> bool {
-        self.bits & (1 << 9) == 1 << 9
+        self.bits.get_bit(9)
     }
 
     /// Machine External Interrupt Enable
     #[inline]
     pub fn mext(&self) -> bool {
-        self.bits & (1 << 11) == 1 << 11
+        self.bits.get_bit(11)
     }
 }
 
-/// Reads the CSR
-#[inline]
-pub fn read() -> Mie {
-    match () {
-        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-        () => {
-            let r: usize;
-            unsafe {
-                asm!("csrrs $0, 0x304, x0" : "=r"(r) ::: "volatile");
-            }
-            Mie { bits: r }
-        }
-        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
-        () => unimplemented!(),
-    }
-}
+read_csr_as!(Mie, 0x304, __read_mie);
+set!(0x304, __set_mie);
+clear!(0x304, __clear_mie);
 
-/// Sets the CSR
-#[cfg_attr(not(any(target_arch = "riscv32", target_arch = "riscv64")), allow(unused_variables))]
-#[inline]
-unsafe fn set(bits: usize) {
-    match () {
-        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-        () => asm!("csrrs x0, 0x304, $0" :: "r"(bits) :: "volatile"),
-        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
-        () => unimplemented!(),
-    }
-}
-
-/// Clears the CSR
-#[cfg_attr(not(any(target_arch = "riscv32", target_arch = "riscv64")), allow(unused_variables))]
-#[inline]
-unsafe fn clear(bits: usize) {
-    match () {
-        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-        () => asm!("csrrc x0, 0x304, $0" :: "r"(bits) :: "volatile"),
-        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
-        () => unimplemented!(),
-    }
-}
-
-macro_rules! set_csr {
-    ($set_field:ident, $e:expr) => {
-        #[inline]
-        pub unsafe fn $set_field() {
-            set($e);
-        }
-    }
-}
-
-macro_rules! clear_csr {
-    ($clear_field:ident, $e:expr) => {
-        #[inline]
-        pub unsafe fn $clear_field() {
-            clear($e);
-        }
-    }
-}
-
-macro_rules! set_clear_csr {
-    ($set_field:ident, $clear_field:ident, $e:expr) => {
-        set_csr!($set_field, $e);
-        clear_csr!($clear_field, $e);
-    }
-}
-
-/// User Software Interrupt Enable
-set_clear_csr!(set_usoft, clear_usoft, 1 << 0);
-/// Supervisor Software Interrupt Enable
-set_clear_csr!(set_ssoft, clear_ssoft, 1 << 1);
-/// Machine Software Interrupt Enable
-set_clear_csr!(set_msoft, clear_msoft, 1 << 3);
-/// User Timer Interrupt Enable
-set_clear_csr!(set_utimer, clear_utimer, 1 << 4);
-/// Supervisor Timer Interrupt Enable
-set_clear_csr!(set_stimer, clear_stimer, 1 << 5);
-/// Machine Timer Interrupt Enable
-set_clear_csr!(set_mtimer, clear_mtimer, 1 << 7);
-/// User External Interrupt Enable
-set_clear_csr!(set_uext, clear_uext, 1 << 8);
-/// Supervisor External Interrupt Enable
-set_clear_csr!(set_sext, clear_sext, 1 << 9);
-/// Machine External Interrupt Enable
-set_clear_csr!(set_mext, clear_mext, 1 << 11);
+set_clear_csr!(
+    /// User Software Interrupt Enable
+    , set_usoft, clear_usoft, 1 << 0);
+set_clear_csr!(
+    /// Supervisor Software Interrupt Enable
+    , set_ssoft, clear_ssoft, 1 << 1);
+set_clear_csr!(
+    /// Machine Software Interrupt Enable
+    , set_msoft, clear_msoft, 1 << 3);
+set_clear_csr!(
+    /// User Timer Interrupt Enable
+    , set_utimer, clear_utimer, 1 << 4);
+set_clear_csr!(
+    /// Supervisor Timer Interrupt Enable
+    , set_stimer, clear_stimer, 1 << 5);
+set_clear_csr!(
+    /// Machine Timer Interrupt Enable
+    , set_mtimer, clear_mtimer, 1 << 7);
+set_clear_csr!(
+    /// User External Interrupt Enable
+    , set_uext, clear_uext, 1 << 8);
+set_clear_csr!(
+    /// Supervisor External Interrupt Enable
+    , set_sext, clear_sext, 1 << 9);
+set_clear_csr!(
+    /// Machine External Interrupt Enable
+    , set_mext, clear_mext, 1 << 11);

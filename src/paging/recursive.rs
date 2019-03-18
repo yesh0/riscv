@@ -52,7 +52,7 @@ impl MapperFlush {
 
     /// Flush the page from the TLB to ensure that the newest mapping is used.
     pub fn flush(self) {
-        crate::asm::sfence_vma(0, self.0.start_address());
+        unsafe { crate::asm::sfence_vma(0, self.0.start_address().as_usize()); }
     }
 
     /// Don't flush the TLB and silence the “must be used” warning.
@@ -97,14 +97,14 @@ struct TempMap<'a> {
 }
 
 impl<'a> TempMap<'a> {
-    #[cfg(target_arch = "riscv32")]
+    #[cfg(riscv32)]
     unsafe fn new(rec_idx: usize) -> Self {
         TempMap {
             entry: VirtAddr::from_page_table_indices(rec_idx, rec_idx + 1, (rec_idx + 2) * 4).as_mut(),
             pt_addr: VirtAddr::from_page_table_indices(rec_idx, rec_idx + 2, 0),
         }
     }
-    #[cfg(target_arch = "riscv64")]
+    #[cfg(riscv64)]
     unsafe fn new(rec_idx: usize, type_: PageTableType) -> Self {
         let p4_idx = match type_ {
             PageTableType::Sv39 => if rec_idx >> 8 == 0 { 0o000 } else { 0o777 },
@@ -118,7 +118,7 @@ impl<'a> TempMap<'a> {
     }
     fn map(&mut self, frame: Frame) -> &mut PageTable {
         self.entry.set(frame, F::VALID | F::READABLE | F::WRITABLE);
-        crate::asm::sfence_vma(0, self.pt_addr.clone());
+        unsafe { crate::asm::sfence_vma(0, self.pt_addr.as_usize()); }
         unsafe { self.pt_addr.as_mut() }
     }
 }
@@ -146,6 +146,7 @@ pub struct RecursivePageTable<'a> {
     ///
     temp_map: TempMap<'a>,
     /// Page table type
+    #[cfg(riscv64)]
     type_: PageTableType,
 }
 
@@ -155,7 +156,7 @@ pub struct RecursivePageTable<'a> {
 #[derive(Debug)]
 pub struct NotRecursivelyMapped;
 
-#[cfg(target_arch = "riscv32")]
+#[cfg(riscv32)]
 impl<'a> RecursivePageTable<'a> {
     /// Creates a new RecursivePageTable from the passed level 2 PageTable.
     ///
@@ -185,7 +186,6 @@ impl<'a> RecursivePageTable<'a> {
             root_table: table,
             rec_idx,
             temp_map: unsafe { TempMap::new(rec_idx) },
-            type_: PageTableType::Sv32
         })
     }
 
@@ -197,7 +197,6 @@ impl<'a> RecursivePageTable<'a> {
             root_table: table,
             rec_idx: recursive_index,
             temp_map: TempMap::new(recursive_index),
-            type_: PageTableType::Sv32
         }
     }
 
@@ -217,7 +216,7 @@ impl<'a> RecursivePageTable<'a> {
     }
 }
 
-#[cfg(target_arch = "riscv64")]
+#[cfg(riscv64)]
 impl<'a> RecursivePageTable<'a> {
     pub fn new(table: &'a mut PageTable, type_: PageTableType) -> Result<Self, NotRecursivelyMapped> {
         let page = Page::of_addr(VirtAddr::new(table as *const _ as usize));
@@ -346,7 +345,7 @@ impl<'a> RecursivePageTable<'a> {
     }
 }
 
-#[cfg(target_arch = "riscv32")]
+#[cfg(riscv32)]
 impl<'a> Mapper for RecursivePageTable<'a> {
     fn map_to(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut impl FrameAllocator)
         -> Result<MapperFlush, MapToError>
@@ -384,7 +383,7 @@ impl<'a> Mapper for RecursivePageTable<'a> {
     }
 }
 
-#[cfg(target_arch = "riscv64")]
+#[cfg(riscv64)]
 impl<'a> Mapper for RecursivePageTable<'a> {
     fn map_to(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut impl FrameAllocator)
         -> Result<MapperFlush, MapToError>

@@ -6,12 +6,12 @@ pub struct VirtAddr(usize);
 
 
 impl VirtAddr {
-    #[cfg(target_arch = "riscv32")]
+    #[cfg(riscv32)]
     pub fn new(addr: usize) -> VirtAddr {
         VirtAddr(addr)
     }
 
-    #[cfg(target_arch = "riscv64")]
+    #[cfg(riscv64)]
     pub fn new(addr: usize) -> VirtAddr {
         if addr.get_bit(47) {
             assert!(addr.get_bits(48..64) == 0xFFFF, "va 48..64 is not sext");
@@ -25,39 +25,39 @@ impl VirtAddr {
         self.0
     }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p4_index(&self) -> usize {
         self.0.get_bits(39..48)
     }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p3_index(&self) -> usize {
         self.0.get_bits(30..39)
     }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p2_index(&self) -> usize {
         self.0.get_bits(21..30)
     }
-    #[cfg(target_pointer_width = "32")]
+    #[cfg(riscv32)]
     pub fn p2_index(&self) -> usize {
         self.0.get_bits(22..32)
     }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p1_index(&self) -> usize {
         return self.0.get_bits(12..21)
     }
-    #[cfg(target_pointer_width = "32")]
+    #[cfg(riscv32)]
     pub fn p1_index(&self) -> usize {
         return self.0.get_bits(12..22)
     }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn page_number(&self) -> usize {
         self.0.get_bits(12..64)
     }
-    #[cfg(target_pointer_width = "32")]
+    #[cfg(riscv32)]
     pub fn page_number(&self) -> usize {
         self.0.get_bits(12..32)
     }
@@ -70,7 +70,7 @@ impl VirtAddr {
         VirtAddr((self.0 >> 12) << 12)
     }
 
-    #[cfg(target_arch = "riscv32")]
+    #[cfg(riscv32)]
     pub fn from_page_table_indices(p2_index: usize,
                                    p1_index: usize,
                                    offset: usize) -> Self
@@ -81,7 +81,7 @@ impl VirtAddr {
         VirtAddr::new((p2_index << 22) | (p1_index << 12) | offset)
     }
 
-    #[cfg(target_arch = "riscv64")]
+    #[cfg(riscv64)]
     pub fn from_page_table_indices(p4_index: usize,
                                    p3_index: usize,
                                    p2_index: usize,
@@ -117,12 +117,12 @@ impl VirtAddr {
 pub struct PhysAddr(usize);
 
 impl PhysAddr {
-    #[cfg(target_arch = "riscv32")]
+    #[cfg(riscv32)]
     pub fn new(addr: usize) -> PhysAddr {
         PhysAddr(addr)
     }
 
-    #[cfg(target_arch = "riscv64")]
+    #[cfg(riscv64)]
     pub fn new(addr: usize) -> PhysAddr {
         assert!(addr.get_bits(32..64) == 0, "pa 32..64 not zero?");
         PhysAddr(addr)
@@ -132,40 +132,40 @@ impl PhysAddr {
         self.0
     }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p4_index(&self) -> usize {
         self.0.get_bits(39..48) as usize
     }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p3_index(&self) -> usize {
         self.0.get_bits(30..39) as usize
     }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p2_index(&self) -> usize {
         self.0.get_bits(21..30) as usize
     }
 
-    #[cfg(target_pointer_width = "32")]
+    #[cfg(riscv32)]
     pub fn p2_index(&self) -> usize {
         self.0.get_bits(22..32)
     }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p1_index(&self) -> usize {
         self.0.get_bits(12..21) as usize
     }
-    #[cfg(target_pointer_width = "32")]
+    #[cfg(riscv32)]
     pub fn p1_index(&self) -> usize {
         self.0.get_bits(12..22)
     }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn page_number(&self) -> usize {
         self.0.get_bits(12..64) as usize
     }
-    #[cfg(target_pointer_width = "32")]
+    #[cfg(riscv32)]
     pub fn page_number(&self) -> usize {
         self.0.get_bits(12..32)
     }
@@ -195,10 +195,10 @@ impl Page {
 
     pub fn start_address(&self) -> VirtAddr { self.0.clone() }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p4_index(&self) -> usize { self.0.p4_index() }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p3_index(&self) -> usize { self.0.p3_index() }
 
     pub fn p2_index(&self) -> usize { self.0.p2_index() }
@@ -207,7 +207,7 @@ impl Page {
 
     pub fn number(&self) -> usize { self.0.page_number() }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn from_page_table_indices(p4_index: usize, p3_index: usize,
                                    p2_index: usize, p1_index: usize) -> Self {
         use bit_field::BitField;
@@ -224,7 +224,7 @@ impl Page {
         Page::of_addr(VirtAddr::new(addr))
     }
 
-    #[cfg(target_pointer_width = "32")]
+    #[cfg(riscv32)]
     pub fn from_page_table_indices(p2_index: usize, p1_index: usize) -> Self {
         use bit_field::BitField;
         let mut addr: usize = 0;
@@ -251,10 +251,10 @@ impl Frame {
 
     pub fn start_address(&self) -> PhysAddr { self.0.clone() }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p4_index(&self) -> usize { self.0.p4_index() }
 
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(riscv64)]
     pub fn p3_index(&self) -> usize { self.0.p3_index() }
 
     pub fn p2_index(&self) -> usize { self.0.p2_index() }

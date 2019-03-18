@@ -1,7 +1,10 @@
 //! scause register
 
+use bit_field::BitField;
+use core::mem::size_of;
+
 /// scause register
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct Scause {
     bits: usize,
 }
@@ -75,27 +78,22 @@ impl Exception {
         }
     }
 }
+
 impl Scause {
     /// Returns the contents of the register as raw bits
-    #[inline(always)]
+    #[inline]
     pub fn bits(&self) -> usize {
         self.bits
     }
 
     /// Returns the code field
     pub fn code(&self) -> usize {
-        match () {
-            #[cfg(target_pointer_width = "32")]
-            () => self.bits & !(1 << 31),
-            #[cfg(target_pointer_width = "64")]
-            () => self.bits & !(1 << 63),
-            #[cfg(target_pointer_width = "128")]
-            () => self.bits & !(1 << 127),
-        }
+        let bit = 1 << (size_of::<usize>() * 8 - 1);
+        self.bits & !bit
     }
 
     /// Trap Cause
-    #[inline(always)]
+    #[inline]
     pub fn cause(&self) -> Trap {
         if self.is_interrupt() {
             Trap::Interrupt(Interrupt::from(self.code()))
@@ -105,23 +103,16 @@ impl Scause {
     }
 
     /// Is trap cause an interrupt.
-    #[inline(always)]
+    #[inline]
     pub fn is_interrupt(&self) -> bool {
-        match () {
-            #[cfg(target_pointer_width = "32")]
-            () => self.bits & (1 << 31) == 1 << 31,
-            #[cfg(target_pointer_width = "64")]
-            () => self.bits & (1 << 63) == 1 << 63,
-            #[cfg(target_pointer_width = "128")]
-            () => self.bits & (1 << 127) == 1 << 127,
-        }
+        self.bits.get_bit(size_of::<usize>() * 8 - 1)
     }
 
     /// Is trap cause an exception.
-    #[inline(always)]
+    #[inline]
     pub fn is_exception(&self) -> bool {
         !self.is_interrupt()
     }
 }
 
-read_csr_as!(Scause, 0x142);
+read_csr_as!(Scause, 0x142, __read_scause);
