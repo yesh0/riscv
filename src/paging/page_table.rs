@@ -19,7 +19,6 @@ impl PageTable {
     /// Denote `recursive_index` by K, then virtual address of the root page table is
     ///  (K, K+1, 0) in Sv32, and (K, K, K+1, 0) in Sv39, and (K, K, K, K+1, 0) in Sv48.
     pub fn set_recursive(&mut self, recursive_index: usize, frame: Frame) {
-        type EF = PageTableFlags;
         self[recursive_index].set(frame.clone(), EF::VALID);
         self[recursive_index + 1].set(frame.clone(), EF::VALID | EF::READABLE | EF::WRITABLE);
     }
@@ -76,7 +75,9 @@ impl PageTableEntry {
     pub fn frame(&self) -> Frame {
         Frame::of_addr(self.addr())
     }
-    pub fn set(&mut self, frame: Frame, flags: PageTableFlags) {
+    pub fn set(&mut self, frame: Frame, mut flags: PageTableFlags) {
+        // U540 will raise page fault when accessing page with A=0 or D=0
+        flags |= EF::ACCESSED | EF::DIRTY;
         self.0 = (frame.number() << 10) | flags.bits();
     }
     pub fn flags_mut(&mut self) -> &mut PageTableFlags {
@@ -113,3 +114,5 @@ bitflags! {
         const RESERVED2 =   1 << 9;
     }
 }
+
+type EF = PageTableFlags;
