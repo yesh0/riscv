@@ -1,6 +1,6 @@
 use addr::*;
+use core::fmt::{Debug, Error, Formatter};
 use core::ops::{Index, IndexMut};
-use core::fmt::{Debug, Formatter, Error};
 
 pub struct PageTable {
     entries: [PageTableEntry; ENTRY_COUNT],
@@ -47,8 +47,7 @@ impl IndexMut<usize> for PageTable {
 impl Debug for PageTable {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         f.debug_map()
-            .entries(self.entries.iter().enumerate()
-                .filter(|p| !p.1.is_unused()))
+            .entries(self.entries.iter().enumerate().filter(|p| !p.1.is_unused()))
             .finish()
     }
 }

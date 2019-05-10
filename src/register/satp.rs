@@ -1,9 +1,9 @@
 //! satp register
 
 #[cfg(riscv)]
-use bit_field::BitField;
-#[cfg(riscv)]
 use addr::Frame;
+#[cfg(riscv)]
+use bit_field::BitField;
 
 /// satp register
 #[derive(Clone, Copy, Debug)]

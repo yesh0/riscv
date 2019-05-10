@@ -1,5 +1,5 @@
 use super::frame_alloc::*;
-use super::page_table::{*, PageTableFlags as F};
+use super::page_table::{PageTableFlags as F, *};
 use addr::*;
 
 pub trait Mapper {
@@ -7,7 +7,13 @@ pub trait Mapper {
     ///
     /// This function might need additional physical frames to create new page tables. These
     /// frames are allocated from the `allocator` argument. At most three frames are required.
-    fn map_to(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut impl FrameAllocator) -> Result<MapperFlush, MapToError>;
+    fn map_to(
+        &mut self,
+        page: Page,
+        frame: Frame,
+        flags: PageTableFlags,
+        allocator: &mut impl FrameAllocator,
+    ) -> Result<MapperFlush, MapToError>;
 
     /// Removes a mapping from the page table and returns the frame that used to be mapped.
     ///
@@ -18,7 +24,11 @@ pub trait Mapper {
     fn ref_entry(&mut self, page: Page) -> Result<&mut PageTableEntry, FlagUpdateError>;
 
     /// Updates the flags of an existing mapping.
-    fn update_flags(&mut self, page: Page, flags: PageTableFlags) -> Result<MapperFlush, FlagUpdateError> {
+    fn update_flags(
+        &mut self,
+        page: Page,
+        flags: PageTableFlags,
+    ) -> Result<MapperFlush, FlagUpdateError> {
         self.ref_entry(page).map(|e| {
             *e.flags_mut() = flags;
             MapperFlush::new(page)
@@ -28,14 +38,24 @@ pub trait Mapper {
     /// Return the frame that the specified page is mapped to.
     fn translate_page(&mut self, page: Page) -> Option<Frame> {
         match self.ref_entry(page) {
-            Ok(e) => if e.is_unused() { None } else { Some(e.frame()) },
+            Ok(e) => {
+                if e.is_unused() {
+                    None
+                } else {
+                    Some(e.frame())
+                }
+            }
             Err(_) => None,
         }
     }
 
     /// Maps the given frame to the virtual page with the same address.
-    fn identity_map(&mut self, frame: Frame, flags: PageTableFlags, allocator: &mut impl FrameAllocator) -> Result<MapperFlush, MapToError>
-    {
+    fn identity_map(
+        &mut self,
+        frame: Frame,
+        flags: PageTableFlags,
+        allocator: &mut impl FrameAllocator,
+    ) -> Result<MapperFlush, MapToError> {
         let page = Page::of_addr(VirtAddr::new(frame.start_address().as_usize()));
         self.map_to(page, frame, flags, allocator)
     }
@@ -52,7 +72,9 @@ impl MapperFlush {
 
     /// Flush the page from the TLB to ensure that the newest mapping is used.
     pub fn flush(self) {
-        unsafe { crate::asm::sfence_vma(0, self.0.start_address().as_usize()); }
+        unsafe {
+            crate::asm::sfence_vma(0, self.0.start_address().as_usize());
+        }
     }
 
     /// Don't flush the TLB and silence the “must be used” warning.
@@ -100,32 +122,50 @@ impl<'a> TempMap<'a> {
     #[cfg(riscv32)]
     unsafe fn new(rec_idx: usize) -> Self {
         TempMap {
-            entry: VirtAddr::from_page_table_indices(rec_idx, rec_idx + 1, (rec_idx + 2) * 4).as_mut(),
+            entry: VirtAddr::from_page_table_indices(rec_idx, rec_idx + 1, (rec_idx + 2) * 4)
+                .as_mut(),
             pt_addr: VirtAddr::from_page_table_indices(rec_idx, rec_idx + 2, 0),
         }
     }
     #[cfg(riscv64)]
     unsafe fn new(rec_idx: usize, type_: PageTableType) -> Self {
         let p4_idx = match type_ {
-            PageTableType::Sv39 => if rec_idx >> 8 == 0 { 0o000 } else { 0o777 },
+            PageTableType::Sv39 => {
+                if rec_idx >> 8 == 0 {
+                    0o000
+                } else {
+                    0o777
+                }
+            }
             PageTableType::Sv48 => rec_idx,
             _ => panic!("invalid page table type"),
         };
         TempMap {
-            entry: VirtAddr::from_page_table_indices(p4_idx, rec_idx, rec_idx, rec_idx + 1, (rec_idx + 2) * 8).as_mut(),
+            entry: VirtAddr::from_page_table_indices(
+                p4_idx,
+                rec_idx,
+                rec_idx,
+                rec_idx + 1,
+                (rec_idx + 2) * 8,
+            )
+            .as_mut(),
             pt_addr: VirtAddr::from_page_table_indices(p4_idx, rec_idx, rec_idx, rec_idx + 2, 0),
         }
     }
     fn map(&mut self, frame: Frame) -> &mut PageTable {
         self.entry.set(frame, F::VALID | F::READABLE | F::WRITABLE);
-        unsafe { crate::asm::sfence_vma(0, self.pt_addr.as_usize()); }
+        unsafe {
+            crate::asm::sfence_vma(0, self.pt_addr.as_usize());
+        }
         unsafe { self.pt_addr.as_mut() }
     }
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum PageTableType {
-    Sv32 = 2, Sv39 = 3, Sv48 = 4,
+    Sv32 = 2,
+    Sv39 = 3,
+    Sv48 = 4,
 }
 
 /// A recursive page table is a last level page table with an entry mapped to the table itself.
@@ -176,8 +216,10 @@ impl<'a> RecursivePageTable<'a> {
             || satp_frame != table[rec_idx].frame()
             || satp_frame != table[rec_idx + 1].frame()
             || !table[rec_idx].flags().contains(F::VALID)
-            ||  table[rec_idx].flags().contains(F::READABLE | F::WRITABLE)
-            || !table[rec_idx + 1].flags().contains(F::VALID | F::READABLE | F::WRITABLE)
+            || table[rec_idx].flags().contains(F::READABLE | F::WRITABLE)
+            || !table[rec_idx + 1]
+                .flags()
+                .contains(F::VALID | F::READABLE | F::WRITABLE)
         {
             return Err(NotRecursivelyMapped);
         }
@@ -200,8 +242,15 @@ impl<'a> RecursivePageTable<'a> {
         }
     }
 
-    fn create_p1_if_not_exist(&mut self, p2_index: usize, allocator: &mut impl FrameAllocator) -> Result<&mut PageTable, MapToError> {
-        assert!(p2_index < self.rec_idx || p2_index > self.rec_idx + 2, "invalid p2_index");
+    fn create_p1_if_not_exist(
+        &mut self,
+        p2_index: usize,
+        allocator: &mut impl FrameAllocator,
+    ) -> Result<&mut PageTable, MapToError> {
+        assert!(
+            p2_index < self.rec_idx || p2_index > self.rec_idx + 2,
+            "invalid p2_index"
+        );
         if self.root_table[p2_index].is_unused() {
             let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
             self.root_table[p2_index].set(frame.clone(), F::VALID);
@@ -218,7 +267,10 @@ impl<'a> RecursivePageTable<'a> {
 
 #[cfg(riscv64)]
 impl<'a> RecursivePageTable<'a> {
-    pub fn new(table: &'a mut PageTable, type_: PageTableType) -> Result<Self, NotRecursivelyMapped> {
+    pub fn new(
+        table: &'a mut PageTable,
+        type_: PageTableType,
+    ) -> Result<Self, NotRecursivelyMapped> {
         let page = Page::of_addr(VirtAddr::new(table as *const _ as usize));
         let rec_idx = match type_ {
             PageTableType::Sv39 => page.p3_index(),
@@ -240,7 +292,7 @@ impl<'a> RecursivePageTable<'a> {
             ||  table[rec_idx].flags().contains(F::READABLE | F::WRITABLE)
                 // Require that table[l] must be valid, and points to a page table.
             || !table[rec_idx + 1].flags().contains(F::VALID | F::READABLE | F::WRITABLE)
-                // Require that table[l+1] must be valid, and points to a page.
+        // Require that table[l+1] must be valid, and points to a page.
         {
             return Err(NotRecursivelyMapped);
         }
@@ -253,7 +305,11 @@ impl<'a> RecursivePageTable<'a> {
         })
     }
 
-    pub unsafe fn new_unchecked(table: &'a mut PageTable, recursive_index: usize, type_: PageTableType) -> Self {
+    pub unsafe fn new_unchecked(
+        table: &'a mut PageTable,
+        recursive_index: usize,
+        type_: PageTableType,
+    ) -> Self {
         RecursivePageTable {
             root_table: table,
             rec_idx: recursive_index,
@@ -262,14 +318,22 @@ impl<'a> RecursivePageTable<'a> {
         }
     }
 
-    fn create_p1_if_not_exist(&mut self, page: Page, allocator: &mut impl FrameAllocator)
-        -> Result<&mut PageTable, MapToError>
-    {
-        assert!(page.p4_index() < self.rec_idx || page.p4_index() > self.rec_idx + 2, "invalid p4_index");
+    fn create_p1_if_not_exist(
+        &mut self,
+        page: Page,
+        allocator: &mut impl FrameAllocator,
+    ) -> Result<&mut PageTable, MapToError> {
+        assert!(
+            page.p4_index() < self.rec_idx || page.p4_index() > self.rec_idx + 2,
+            "invalid p4_index"
+        );
         let p4_table = &mut self.root_table;
 
         let p3_table = if self.type_ == PageTableType::Sv39 {
-            assert!(page.p3_index() < self.rec_idx || page.p3_index() > self.rec_idx + 2, "invalid p3_index");
+            assert!(
+                page.p3_index() < self.rec_idx || page.p3_index() > self.rec_idx + 2,
+                "invalid p3_index"
+            );
             &mut self.root_table
         } else if p4_table[page.p4_index()].is_unused() {
             let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
@@ -308,14 +372,19 @@ impl<'a> RecursivePageTable<'a> {
         Ok(p1_table)
     }
 
-    fn ref_p1(&mut self, page: Page) -> Option<&mut PageTable>
-    {
-        assert!(page.p4_index() < self.rec_idx || page.p4_index() > self.rec_idx + 2, "invalid p4_index");
+    fn ref_p1(&mut self, page: Page) -> Option<&mut PageTable> {
+        assert!(
+            page.p4_index() < self.rec_idx || page.p4_index() > self.rec_idx + 2,
+            "invalid p4_index"
+        );
 
         let p4_table = &mut self.root_table;
 
         let p3_table = if self.type_ == PageTableType::Sv39 {
-            assert!(page.p3_index() < self.rec_idx || page.p3_index() > self.rec_idx + 2, "invalid p3_index");
+            assert!(
+                page.p3_index() < self.rec_idx || page.p3_index() > self.rec_idx + 2,
+                "invalid p3_index"
+            );
             &mut self.root_table
         } else {
             if p4_table[page.p4_index()].is_unused() {
@@ -347,9 +416,13 @@ impl<'a> RecursivePageTable<'a> {
 
 #[cfg(riscv32)]
 impl<'a> Mapper for RecursivePageTable<'a> {
-    fn map_to(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut impl FrameAllocator)
-        -> Result<MapperFlush, MapToError>
-    {
+    fn map_to(
+        &mut self,
+        page: Page,
+        frame: Frame,
+        flags: PageTableFlags,
+        allocator: &mut impl FrameAllocator,
+    ) -> Result<MapperFlush, MapToError> {
         let p1_table = self.create_p1_if_not_exist(page.p2_index(), allocator)?;
         if !p1_table[page.p1_index()].is_unused() {
             return Err(MapToError::PageAlreadyMapped);
@@ -385,9 +458,13 @@ impl<'a> Mapper for RecursivePageTable<'a> {
 
 #[cfg(riscv64)]
 impl<'a> Mapper for RecursivePageTable<'a> {
-    fn map_to(&mut self, page: Page, frame: Frame, flags: PageTableFlags, allocator: &mut impl FrameAllocator)
-        -> Result<MapperFlush, MapToError>
-    {
+    fn map_to(
+        &mut self,
+        page: Page,
+        frame: Frame,
+        flags: PageTableFlags,
+        allocator: &mut impl FrameAllocator,
+    ) -> Result<MapperFlush, MapToError> {
         let p1 = self.create_p1_if_not_exist(page, allocator)?;
         if !p1[page.p1_index()].is_unused() {
             return Err(MapToError::PageAlreadyMapped);

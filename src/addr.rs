@@ -1,9 +1,7 @@
 use bit_field::BitField;
 
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VirtAddr(usize);
-
 
 impl VirtAddr {
     #[cfg(riscv32)]
@@ -46,11 +44,11 @@ impl VirtAddr {
 
     #[cfg(riscv64)]
     pub fn p1_index(&self) -> usize {
-        return self.0.get_bits(12..21)
+        return self.0.get_bits(12..21);
     }
     #[cfg(riscv32)]
     pub fn p1_index(&self) -> usize {
-        return self.0.get_bits(12..22)
+        return self.0.get_bits(12..22);
     }
 
     #[cfg(riscv64)]
@@ -71,10 +69,7 @@ impl VirtAddr {
     }
 
     #[cfg(riscv32)]
-    pub fn from_page_table_indices(p2_index: usize,
-                                   p1_index: usize,
-                                   offset: usize) -> Self
-    {
+    pub fn from_page_table_indices(p2_index: usize, p1_index: usize, offset: usize) -> Self {
         assert!(p2_index.get_bits(10..32) == 0, "p2_index exceeding 10 bits");
         assert!(p1_index.get_bits(10..32) == 0, "p1_index exceeding 10 bits");
         assert!(offset.get_bits(12..32) == 0, "offset exceeding 12 bits");
@@ -82,23 +77,23 @@ impl VirtAddr {
     }
 
     #[cfg(riscv64)]
-    pub fn from_page_table_indices(p4_index: usize,
-                                   p3_index: usize,
-                                   p2_index: usize,
-                                   p1_index: usize,
-                                   offset: usize) -> Self
-    {
+    pub fn from_page_table_indices(
+        p4_index: usize,
+        p3_index: usize,
+        p2_index: usize,
+        p1_index: usize,
+        offset: usize,
+    ) -> Self {
         assert!(p4_index.get_bits(10..32) == 0, "p4_index exceeding 9 bits");
         assert!(p3_index.get_bits(10..32) == 0, "p3_index exceeding 9 bits");
         assert!(p2_index.get_bits(10..32) == 0, "p2_index exceeding 9 bits");
         assert!(p1_index.get_bits(10..32) == 0, "p1_index exceeding 9 bits");
         assert!(offset.get_bits(12..32) == 0, "offset exceeding 12 bits");
-        let mut addr: usize =
-            (p4_index << 12 << 9 << 9 << 9) |
-            (p3_index << 12 << 9 << 9) |
-            (p2_index << 12 << 9) |
-            (p1_index << 12) |
-            offset;
+        let mut addr: usize = (p4_index << 12 << 9 << 9 << 9)
+            | (p3_index << 12 << 9 << 9)
+            | (p2_index << 12 << 9)
+            | (p1_index << 12)
+            | offset;
         if addr.get_bit(47) {
             addr.set_bits(48..64, 0xFFFF);
         } else {
@@ -111,7 +106,6 @@ impl VirtAddr {
         &mut *(self.0 as *mut T)
     }
 }
-
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysAddr(usize);
@@ -179,10 +173,8 @@ impl PhysAddr {
     }
 }
 
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Page(VirtAddr);
-
 
 impl Page {
     pub fn of_addr(addr: VirtAddr) -> Self {
@@ -193,23 +185,39 @@ impl Page {
         Page(VirtAddr::new(vpn << 12))
     }
 
-    pub fn start_address(&self) -> VirtAddr { self.0.clone() }
+    pub fn start_address(&self) -> VirtAddr {
+        self.0.clone()
+    }
 
     #[cfg(riscv64)]
-    pub fn p4_index(&self) -> usize { self.0.p4_index() }
+    pub fn p4_index(&self) -> usize {
+        self.0.p4_index()
+    }
 
     #[cfg(riscv64)]
-    pub fn p3_index(&self) -> usize { self.0.p3_index() }
+    pub fn p3_index(&self) -> usize {
+        self.0.p3_index()
+    }
 
-    pub fn p2_index(&self) -> usize { self.0.p2_index() }
+    pub fn p2_index(&self) -> usize {
+        self.0.p2_index()
+    }
 
-    pub fn p1_index(&self) -> usize { self.0.p1_index() }
+    pub fn p1_index(&self) -> usize {
+        self.0.p1_index()
+    }
 
-    pub fn number(&self) -> usize { self.0.page_number() }
+    pub fn number(&self) -> usize {
+        self.0.page_number()
+    }
 
     #[cfg(riscv64)]
-    pub fn from_page_table_indices(p4_index: usize, p3_index: usize,
-                                   p2_index: usize, p1_index: usize) -> Self {
+    pub fn from_page_table_indices(
+        p4_index: usize,
+        p3_index: usize,
+        p2_index: usize,
+        p1_index: usize,
+    ) -> Self {
         use bit_field::BitField;
         let mut addr: usize = 0;
         addr.set_bits(39..48, p4_index);
@@ -234,10 +242,8 @@ impl Page {
     }
 }
 
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Frame(PhysAddr);
-
 
 impl Frame {
     pub fn of_addr(addr: PhysAddr) -> Self {
@@ -249,17 +255,33 @@ impl Frame {
         Frame(PhysAddr::new(ppn << 12))
     }
 
-    pub fn start_address(&self) -> PhysAddr { self.0.clone() }
+    pub fn start_address(&self) -> PhysAddr {
+        self.0.clone()
+    }
 
     #[cfg(riscv64)]
-    pub fn p4_index(&self) -> usize { self.0.p4_index() }
+    pub fn p4_index(&self) -> usize {
+        self.0.p4_index()
+    }
 
     #[cfg(riscv64)]
-    pub fn p3_index(&self) -> usize { self.0.p3_index() }
+    pub fn p3_index(&self) -> usize {
+        self.0.p3_index()
+    }
 
-    pub fn p2_index(&self) -> usize { self.0.p2_index() }
+    pub fn p2_index(&self) -> usize {
+        self.0.p2_index()
+    }
 
-    pub fn p1_index(&self) -> usize { self.0.p1_index() }
+    pub fn p1_index(&self) -> usize {
+        self.0.p1_index()
+    }
 
-    pub fn number(&self) -> usize { self.0.page_number() }
+    pub fn number(&self) -> usize {
+        self.0.page_number()
+    }
+
+    pub unsafe fn as_kernel_mut<'a, 'b, T>(&'a self, linear_offset: usize) -> &'b mut T {
+        &mut *(((self.0).0 + linear_offset) as *mut T)
+    }
 }

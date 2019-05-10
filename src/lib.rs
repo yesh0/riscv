@@ -25,8 +25,8 @@ extern crate bare_metal;
 extern crate bitflags;
 extern crate bit_field;
 
+pub mod addr;
 pub mod asm;
 pub mod interrupt;
-pub mod register;
-pub mod addr;
 pub mod paging;
+pub mod register;

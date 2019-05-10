@@ -63,7 +63,9 @@ macro_rules! read_csr_as {
         /// Reads the CSR
         #[inline]
         pub fn read() -> $register {
-            $register { bits: unsafe{ _read() } }
+            $register {
+                bits: unsafe { _read() },
+            }
         }
     };
 }
@@ -75,7 +77,7 @@ macro_rules! read_csr_as_usize {
         /// Reads the CSR
         #[inline]
         pub fn read() -> usize {
-            unsafe{ _read() }
+            unsafe { _read() }
         }
     };
 }
@@ -87,7 +89,7 @@ macro_rules! read_csr_as_usize_rv32 {
         /// Reads the CSR
         #[inline]
         pub fn read() -> usize {
-            unsafe{ _read() }
+            unsafe { _read() }
         }
     };
 }
@@ -125,7 +127,7 @@ macro_rules! write_csr_as_usize {
         /// Writes the CSR
         #[inline]
         pub fn write(bits: usize) {
-            unsafe{ _write(bits) }
+            unsafe { _write(bits) }
         }
     };
 }
@@ -228,5 +230,5 @@ macro_rules! read_composite_csr {
                 () => $lo as u64,
             }
         }
-    }
+    };
 }
