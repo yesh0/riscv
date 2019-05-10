@@ -66,7 +66,7 @@ pub struct MapperFlush(Page);
 
 impl MapperFlush {
     /// Create a new flush promise
-    fn new(page: Page) -> Self {
+    pub(crate) fn new(page: Page) -> Self {
         MapperFlush(page)
     }
 
