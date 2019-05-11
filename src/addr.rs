@@ -218,7 +218,6 @@ impl Page {
         p2_index: usize,
         p1_index: usize,
     ) -> Self {
-        use bit_field::BitField;
         let mut addr: usize = 0;
         addr.set_bits(39..48, p4_index);
         addr.set_bits(30..39, p3_index);
@@ -234,7 +233,6 @@ impl Page {
 
     #[cfg(riscv32)]
     pub fn from_page_table_indices(p2_index: usize, p1_index: usize) -> Self {
-        use bit_field::BitField;
         let mut addr: usize = 0;
         addr.set_bits(22..32, p2_index);
         addr.set_bits(12..22, p1_index);
