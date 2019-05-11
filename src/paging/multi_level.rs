@@ -80,7 +80,6 @@ impl<'a> Mapper for Rv32PageTable<'a> {
     }
 }
 
-
 /// This struct is a three level page table with `Mapper` trait implemented.
 #[cfg(riscv64)]
 pub struct Rv39PageTable<'a> {
@@ -217,12 +216,12 @@ impl<'a> Rv48PageTable<'a> {
 
         let p2_table = if p3_table[p3_index].is_unused() {
             let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
-            self.root_table[p3_index].set(frame.clone(), F::VALID);
+            p3_table[p3_index].set(frame.clone(), F::VALID);
             let p2_table: &mut PageTable = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p2_table.zero();
             p2_table
         } else {
-            let frame = self.root_table[p3_index].frame();
+            let frame = p3_table[p3_index].frame();
             unsafe { frame.as_kernel_mut(self.linear_offset) }
         };
 
@@ -249,7 +248,12 @@ impl<'a> Mapper for Rv48PageTable<'a> {
         flags: PageTableFlags,
         allocator: &mut impl FrameAllocator,
     ) -> Result<MapperFlush, MapToError> {
-        let p1_table = self.create_p1_if_not_exist(page.p4_index(), page.p3_index(), page.p2_index(), allocator)?;
+        let p1_table = self.create_p1_if_not_exist(
+            page.p4_index(),
+            page.p3_index(),
+            page.p2_index(),
+            allocator,
+        )?;
         if !p1_table[page.p1_index()].is_unused() {
             return Err(MapToError::PageAlreadyMapped);
         }
