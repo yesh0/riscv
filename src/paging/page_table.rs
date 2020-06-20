@@ -97,6 +97,8 @@ impl Debug for PageTableEntry {
 const ENTRY_COUNT: usize = 1 << 9;
 #[cfg(riscv32)]
 const ENTRY_COUNT: usize = 1 << 10;
+#[cfg(not(any(riscv32, riscv64)))]
+const ENTRY_COUNT: usize = 1 << 0;
 
 bitflags! {
     /// Possible flags for a page table entry.

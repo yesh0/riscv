@@ -19,6 +19,11 @@ impl VirtAddr {
         VirtAddr(addr)
     }
 
+    #[cfg(not(any(riscv32, riscv64)))]
+    pub fn new(_addr: usize) -> VirtAddr {
+        unimplemented!()
+    }
+
     pub fn as_usize(&self) -> usize {
         self.0
     }
@@ -37,27 +42,45 @@ impl VirtAddr {
     pub fn p2_index(&self) -> usize {
         self.0.get_bits(21..30)
     }
+
     #[cfg(riscv32)]
     pub fn p2_index(&self) -> usize {
         self.0.get_bits(22..32)
+    }
+
+    #[cfg(not(any(riscv32, riscv64)))]
+    pub fn p2_index(&self) -> usize {
+        unimplemented!()
     }
 
     #[cfg(riscv64)]
     pub fn p1_index(&self) -> usize {
         return self.0.get_bits(12..21);
     }
+
     #[cfg(riscv32)]
     pub fn p1_index(&self) -> usize {
         return self.0.get_bits(12..22);
+    }
+
+    #[cfg(not(any(riscv32, riscv64)))]
+    pub fn p1_index(&self) -> usize {
+        unimplemented!()
     }
 
     #[cfg(riscv64)]
     pub fn page_number(&self) -> usize {
         self.0.get_bits(12..64)
     }
+
     #[cfg(riscv32)]
     pub fn page_number(&self) -> usize {
         self.0.get_bits(12..32)
+    }
+
+    #[cfg(not(any(riscv32, riscv64)))]
+    pub fn page_number(&self) -> usize {
+        unimplemented!()
     }
 
     pub fn page_offset(&self) -> usize {
@@ -122,6 +145,11 @@ impl PhysAddr {
         PhysAddr(addr)
     }
 
+    #[cfg(not(any(riscv32, riscv64)))]
+    pub fn new(_addr: usize) -> PhysAddr {
+        unimplemented!()
+    }
+
     pub fn as_usize(&self) -> usize {
         self.0
     }
@@ -146,22 +174,39 @@ impl PhysAddr {
         self.0.get_bits(22..32)
     }
 
+    #[cfg(not(any(riscv32, riscv64)))]
+    pub fn p2_index(&self) -> usize {
+        unimplemented!()
+    }
+
     #[cfg(riscv64)]
     pub fn p1_index(&self) -> usize {
         self.0.get_bits(12..21) as usize
     }
+
     #[cfg(riscv32)]
     pub fn p1_index(&self) -> usize {
         self.0.get_bits(12..22)
+    }
+
+    #[cfg(not(any(riscv32, riscv64)))]
+    pub fn p1_index(&self) -> usize {
+        unimplemented!()
     }
 
     #[cfg(riscv64)]
     pub fn page_number(&self) -> usize {
         self.0.get_bits(12..64) as usize
     }
+
     #[cfg(riscv32)]
     pub fn page_number(&self) -> usize {
         self.0.get_bits(12..32)
+    }
+
+    #[cfg(not(any(riscv32, riscv64)))]
+    pub fn page_number(&self) -> usize {
+        unimplemented!()
     }
 
     pub fn page_offset(&self) -> usize {
