@@ -7,11 +7,13 @@ env:
 rust:
   - nightly
   - stable
-  - 1.30.0 # MSRV
+  - 1.31.0 # MSRV
 
 if: (branch = staging OR branch = trying OR branch = master) OR (type = pull_request AND branch = master)
 
 matrix:
+  allow_failures:
+    - rust: nightly
   include:
     - env: TARGET=riscv64imac-unknown-none-elf
       rust: nightly
@@ -26,6 +28,10 @@ matrix:
       language: bash
       if: (branch = staging OR branch = trying OR branch = master) OR (type = pull_request AND branch = master)
 
+    - env: RUSTFMT=1
+      rust: stable
+      if: (branch = staging OR branch = trying OR branch = master) OR (type = pull_request AND branch = master)
+
 
 install:
   - ci/install.sh
@@ -38,9 +44,6 @@ cache:
   cargo: true
   directories:
     - gcc
-before_cache:
-  # Travis can't cache files that are not readable by "others"
-  - chmod -R a+r $HOME/.cargo
 
 branches:
   only:
