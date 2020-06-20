@@ -1,15 +1,11 @@
 //! stvec register
 
+pub use crate::register::mtvec::TrapMode;
+
 /// stvec register
 #[derive(Clone, Copy, Debug)]
 pub struct Stvec {
     bits: usize,
-}
-
-/// Trap mode
-pub enum TrapMode {
-    Direct = 0,
-    Vectored = 1,
 }
 
 impl Stvec {

@@ -4,15 +4,20 @@
 
 # `riscv`
 
-> Low level access to RISCV processors
+> Low level access to RISC-V processors
 
-This project is developed and maintained by the [RISCV team][team].
+This project is developed and maintained by the [RISC-V team][team].
 
 ## [Documentation](https://docs.rs/crate/riscv)
 
+## Minimum Supported Rust Version (MSRV)
+
+This crate is guaranteed to compile on stable Rust 1.31.0 and up. It *might*
+compile with older versions but that may change in any new patch release.
+
 ## License
 
-Copyright 2018 [RISCV team][team]
+Copyright 2019 [RISC-V team][team]
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
@@ -29,7 +34,7 @@ THIS SOFTWARE.
 ## Code of Conduct
 
 Contribution to this crate is organized under the terms of the [Rust Code of
-Conduct][CoC], the maintainer of this crate, the [RISCV team][team], promises
+Conduct][CoC], the maintainer of this crate, the [RISC-V team][team], promises
 to intervene to uphold that code of conduct.
 
 [CoC]: CODE_OF_CONDUCT.md
