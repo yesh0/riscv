@@ -5,17 +5,17 @@ use crate::addr::*;
 
 /// This struct is a two level page table with `Mapper` trait implemented.
 #[cfg(riscv32)]
-pub struct Rv32PageTable<'a> {
-    root_table: &'a mut PageTable,
-    linear_offset: usize, // VA = PA + linear_offset
+pub struct Rv32PageTableWith<'a, T: PTEIterableSlice> {
+    root_table: &'a mut PageTableWith<T>,
+    linear_offset: u64, // VA = PA + linear_offset
 }
 
 #[cfg(riscv32)]
-impl<'a> Rv32PageTable<'a> {
-    pub fn new(table: &'a mut PageTable, linear_offset: usize) -> Self {
-        Rv32PageTable {
+impl<'a, T: PTEIterableSlice> Rv32PageTableWith<'a, T> {
+    pub fn new(table: &'a mut PageTableWith<T>, linear_offset: usize) -> Self {
+        Rv32PageTableWith {
             root_table: table,
-            linear_offset,
+            linear_offset: linear_offset as u64,
         }
     }
 
@@ -39,7 +39,7 @@ impl<'a> Rv32PageTable<'a> {
 }
 
 #[cfg(riscv32)]
-impl<'a> Mapper for Rv32PageTable<'a> {
+impl<'a, T: PTEIterableSlice> Mapper for Rv32PageTableWith<'a, T> {
     fn map_to(
         &mut self,
         page: Page,
@@ -82,17 +82,17 @@ impl<'a> Mapper for Rv32PageTable<'a> {
 
 /// This struct is a three level page table with `Mapper` trait implemented.
 #[cfg(riscv64)]
-pub struct Rv39PageTable<'a> {
-    root_table: &'a mut PageTable,
-    linear_offset: usize, // VA = PA + linear_offset
+pub struct Rv39PageTableWith<'a, T: PTEIterableSlice> {
+    root_table: &'a mut PageTableWith<T>,
+    linear_offset: u64, // VA = PA + linear_offset
 }
 
 #[cfg(riscv64)]
-impl<'a> Rv39PageTable<'a> {
-    pub fn new(table: &'a mut PageTable, linear_offset: usize) -> Self {
-        Rv39PageTable {
+impl<'a, T: PTEIterableSlice> Rv39PageTableWith<'a, T> {
+    pub fn new(table: &'a mut PageTableWith<T>, linear_offset: usize) -> Self {
+        Rv39PageTableWith {
             root_table: table,
-            linear_offset,
+            linear_offset: linear_offset as u64,
         }
     }
 
@@ -127,7 +127,7 @@ impl<'a> Rv39PageTable<'a> {
 }
 
 #[cfg(riscv64)]
-impl<'a> Mapper for Rv39PageTable<'a> {
+impl<'a, T: PTEIterableSlice> Mapper for Rv39PageTableWith<'a, T> {
     fn map_to(
         &mut self,
         page: Page,
@@ -182,17 +182,17 @@ impl<'a> Mapper for Rv39PageTable<'a> {
 
 /// This struct is a four level page table with `Mapper` trait implemented.
 #[cfg(riscv64)]
-pub struct Rv48PageTable<'a> {
-    root_table: &'a mut PageTable,
-    linear_offset: usize, // VA = PA + linear_offset
+pub struct Rv48PageTableWith<'a, T: PTEIterableSlice> {
+    root_table: &'a mut PageTableWith<T>,
+    linear_offset: u64, // VA = PA + linear_offset
 }
 
 #[cfg(riscv64)]
-impl<'a> Rv48PageTable<'a> {
-    pub fn new(table: &'a mut PageTable, linear_offset: usize) -> Self {
-        Rv48PageTable {
+impl<'a, T: PTEIterableSlice> Rv48PageTableWith<'a, T> {
+    pub fn new(table: &'a mut PageTableWith<T>, linear_offset: usize) -> Self {
+        Rv48PageTableWith {
             root_table: table,
-            linear_offset,
+            linear_offset: linear_offset as u64,
         }
     }
 
@@ -240,7 +240,7 @@ impl<'a> Rv48PageTable<'a> {
 }
 
 #[cfg(riscv64)]
-impl<'a> Mapper for Rv48PageTable<'a> {
+impl<'a, T: PTEIterableSlice> Mapper for Rv48PageTableWith<'a, T> {
     fn map_to(
         &mut self,
         page: Page,
@@ -309,3 +309,11 @@ impl<'a> Mapper for Rv48PageTable<'a> {
         Ok(&mut p1_table[page.p1_index()])
     }
 }
+
+use crate::paging::page_table::Entries;
+#[cfg(riscv32)]
+pub type Rv32PageTable<'a> = Rv32PageTableWith<'a, Entries>;
+#[cfg(riscv64)]
+pub type Rv39PageTable<'a> = Rv39PageTableWith<'a, Entries>;
+#[cfg(riscv64)]
+pub type Rv48PageTable<'a> = Rv48PageTableWith<'a, Entries>;

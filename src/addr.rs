@@ -108,21 +108,37 @@ impl VirtAddr {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PhysAddr(usize);
+pub struct PhysAddr(u64);
 
 impl PhysAddr {
     #[cfg(riscv32)]
-    pub fn new(addr: usize) -> PhysAddr {
+    pub fn new(addr: u64) -> PhysAddr {
+        assert!(
+            addr.get_bits(34..64) == 0,
+            "Sv32 does not allow pa 34..64!=0"
+        );
         PhysAddr(addr)
     }
 
     #[cfg(riscv64)]
-    pub fn new(addr: usize) -> PhysAddr {
-        assert!(addr.get_bits(32..64) == 0, "pa 32..64 not zero?");
+    pub fn new(addr: u64) -> PhysAddr {
+        assert!(
+            addr.get_bits(56..64) == 0,
+            "Sv39 and Sv48 do not allow pa 56..64!=0"
+        );
         PhysAddr(addr)
     }
 
     pub fn as_usize(&self) -> usize {
+        #[cfg(riscv32)]
+        assert!(
+            self.0.get_bits(32..34) == 0,
+            "Downcasting an Sv32 pa >4GB (32..34!=0) will cause address loss."
+        );
+        self.0 as usize
+    }
+
+    pub fn as_u64(&self) -> u64 {
         self.0
     }
 
@@ -143,7 +159,7 @@ impl PhysAddr {
 
     #[cfg(riscv32)]
     pub fn p2_index(&self) -> usize {
-        self.0.get_bits(22..32)
+        self.0.get_bits(22..34) as usize
     }
 
     #[cfg(riscv64)]
@@ -152,7 +168,7 @@ impl PhysAddr {
     }
     #[cfg(riscv32)]
     pub fn p1_index(&self) -> usize {
-        self.0.get_bits(12..22)
+        self.0.get_bits(12..22) as usize
     }
 
     #[cfg(riscv64)]
@@ -161,11 +177,11 @@ impl PhysAddr {
     }
     #[cfg(riscv32)]
     pub fn page_number(&self) -> usize {
-        self.0.get_bits(12..32)
+        self.0.get_bits(12..32) as usize
     }
 
     pub fn page_offset(&self) -> usize {
-        self.0.get_bits(0..12)
+        self.0.get_bits(0..12) as usize
     }
 
     pub fn to_4k_aligned(&self) -> Self {
@@ -250,7 +266,7 @@ impl Frame {
 
     #[inline(always)]
     pub fn of_ppn(ppn: usize) -> Self {
-        Frame(PhysAddr::new(ppn << 12))
+        Frame(PhysAddr::new((ppn as u64) << 12))
     }
 
     pub fn start_address(&self) -> PhysAddr {
@@ -279,7 +295,7 @@ impl Frame {
         self.0.page_number()
     }
 
-    pub unsafe fn as_kernel_mut<'a, 'b, T>(&'a self, linear_offset: usize) -> &'b mut T {
+    pub unsafe fn as_kernel_mut<'a, 'b, T>(&'a self, linear_offset: u64) -> &'b mut T {
         &mut *(((self.0).0 + linear_offset) as *mut T)
     }
 }

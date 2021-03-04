@@ -2,14 +2,39 @@ use addr::*;
 use core::fmt::{Debug, Error, Formatter};
 use core::ops::{Index, IndexMut};
 
-pub struct PageTable {
-    entries: [PageTableEntry; ENTRY_COUNT],
+pub type Entries = [PageTableEntry; ENTRY_COUNT];
+
+// To avoid const generic.
+pub trait PTEIterableSlice {
+    fn to_pte_slice<'a>(&'a self) -> &'a [PageTableEntry];
+    fn to_pte_slice_mut<'a>(&'a mut self) -> &'a mut [PageTableEntry];
+    fn pte_index(&self, index: usize) -> &PageTableEntry;
+    fn pte_index_mut(&mut self, index: usize) -> &mut PageTableEntry;
 }
 
-impl PageTable {
+impl PTEIterableSlice for Entries {
+    fn to_pte_slice(&self) -> &[PageTableEntry] {
+        self
+    }
+    fn to_pte_slice_mut(&mut self) -> &mut [PageTableEntry] {
+        self
+    }
+    fn pte_index(&self, index: usize) -> &PageTableEntry {
+        &self[index]
+    }
+    fn pte_index_mut(&mut self, index: usize) -> &mut PageTableEntry {
+        &mut self[index]
+    }
+}
+
+pub struct PageTableWith<T: PTEIterableSlice> {
+    entries: T,
+}
+
+impl<T: PTEIterableSlice> PageTableWith<T> {
     /// Clears all entries.
     pub fn zero(&mut self) {
-        for entry in self.entries.iter_mut() {
+        for entry in self.entries.to_pte_slice_mut().iter_mut() {
             entry.set_unused();
         }
     }
@@ -26,31 +51,41 @@ impl PageTable {
     /// Setup identity map for the page with first level page table index.
     #[cfg(riscv32)]
     pub fn map_identity(&mut self, p2idx: usize, flags: PageTableFlags) {
-        self.entries[p2idx].set(Frame::of_addr(PhysAddr::new(p2idx << 22)), flags);
+        self.entries
+            .pte_index_mut(p2idx)
+            .set(Frame::of_addr(PhysAddr::new((p2idx as u64) << 22)), flags);
     }
 }
 
-impl Index<usize> for PageTable {
+impl<T: PTEIterableSlice> Index<usize> for PageTableWith<T> {
     type Output = PageTableEntry;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.entries[index]
+        self.entries.pte_index(index)
     }
 }
 
-impl IndexMut<usize> for PageTable {
+impl<T: PTEIterableSlice> IndexMut<usize> for PageTableWith<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.entries[index]
+        self.entries.pte_index_mut(index)
     }
 }
 
-impl Debug for PageTable {
+impl<T: PTEIterableSlice> Debug for PageTableWith<T> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         f.debug_map()
-            .entries(self.entries.iter().enumerate().filter(|p| !p.1.is_unused()))
+            .entries(
+                self.entries
+                    .to_pte_slice()
+                    .iter()
+                    .enumerate()
+                    .filter(|p| !p.1.is_unused()),
+            )
             .finish()
     }
 }
+
+pub type PageTable = PageTableWith<Entries>;
 
 #[derive(Copy, Clone)]
 pub struct PageTableEntry(usize);
@@ -69,7 +104,7 @@ impl PageTableEntry {
         self.0 >> 10
     }
     pub fn addr(&self) -> PhysAddr {
-        PhysAddr::new(self.ppn() << 12)
+        PhysAddr::new((self.ppn() as u64) << 12)
     }
     pub fn frame(&self) -> Frame {
         Frame::of_addr(self.addr())
@@ -94,9 +129,9 @@ impl Debug for PageTableEntry {
 }
 
 #[cfg(riscv64)]
-const ENTRY_COUNT: usize = 1 << 9;
+pub const ENTRY_COUNT: usize = 1 << 9;
 #[cfg(riscv32)]
-const ENTRY_COUNT: usize = 1 << 10;
+pub const ENTRY_COUNT: usize = 1 << 10;
 
 bitflags! {
     /// Possible flags for a page table entry.
