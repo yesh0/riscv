@@ -39,6 +39,8 @@ pub mod hgatp;
 pub mod vsstatus;
 pub mod vsip;
 pub mod vsie;
+pub mod vsscratch;
+pub mod vsepc;
 pub mod vstvec;
 pub mod vscause;
 pub mod vstval;
