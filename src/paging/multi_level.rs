@@ -5,19 +5,13 @@ use crate::addr::*;
 use core::marker::PhantomData;
 /// This struct is a two level page table with `Mapper` trait implemented.
 
-pub struct Rv32PageTableWith<
-    'a,
-    V: VirtualAddress + AddressL2,
-    FL: MapperFlushable,
-> {
+pub struct Rv32PageTableWith<'a, V: VirtualAddress + AddressL2, FL: MapperFlushable> {
     root_table: &'a mut PageTableX32,
     linear_offset: u64, // VA = PA + linear_offset
     phantom: PhantomData<*const (V, FL)>,
 }
 
-impl<'a, V: VirtualAddress + AddressL2, FL: MapperFlushable>
-    Rv32PageTableWith<'a, V, FL>
-{
+impl<'a, V: VirtualAddress + AddressL2, FL: MapperFlushable> Rv32PageTableWith<'a, V, FL> {
     pub fn new(table: &'a mut PageTableX32, linear_offset: usize) -> Self {
         Rv32PageTableWith {
             root_table: table,
@@ -102,19 +96,13 @@ impl<'a, V: VirtualAddress + AddressL2, FL: MapperFlushable> Mapper
 
 /// This struct is a three level page table with `Mapper` trait implemented.
 
-pub struct Rv39PageTableWith<
-    'a,
-    V: VirtualAddress + AddressL3,
-    FL: MapperFlushable,
-> {
+pub struct Rv39PageTableWith<'a, V: VirtualAddress + AddressL3, FL: MapperFlushable> {
     root_table: &'a mut PageTableX64,
     linear_offset: u64, // VA = PA + linear_offset
     phantom: PhantomData<*const (V, FL)>,
 }
 
-impl<'a, V: VirtualAddress + AddressL3, FL: MapperFlushable>
-    Rv39PageTableWith<'a, V, FL>
-{
+impl<'a, V: VirtualAddress + AddressL3, FL: MapperFlushable> Rv39PageTableWith<'a, V, FL> {
     pub fn new(table: &'a mut PageTableX64, linear_offset: usize) -> Self {
         Rv39PageTableWith {
             root_table: table,
@@ -224,19 +212,13 @@ impl<'a, V: VirtualAddress + AddressL3, FL: MapperFlushable> Mapper
 
 /// This struct is a four level page table with `Mapper` trait implemented.
 
-pub struct Rv48PageTableWith<
-    'a,
-    V: VirtualAddress + AddressL4,
-    FL: MapperFlushable,
-> {
+pub struct Rv48PageTableWith<'a, V: VirtualAddress + AddressL4, FL: MapperFlushable> {
     root_table: &'a mut PageTableX64,
     linear_offset: u64, // VA = PA + linear_offset
     phantom: PhantomData<*const (V, FL)>,
 }
 
-impl<'a, V: VirtualAddress + AddressL4, FL: MapperFlushable>
-    Rv48PageTableWith<'a, V, FL>
-{
+impl<'a, V: VirtualAddress + AddressL4, FL: MapperFlushable> Rv48PageTableWith<'a, V, FL> {
     pub fn new(table: &'a mut PageTableX64, linear_offset: usize) -> Self {
         Rv48PageTableWith {
             root_table: table,
@@ -375,7 +357,6 @@ impl<'a, V: VirtualAddress + AddressL4, FL: MapperFlushable> Mapper
         Ok(&mut p1_table[page.p1_index()])
     }
 }
-
 
 pub type Rv32PageTable<'a> = Rv32PageTableWith<'a, VirtAddrSv32, MapperFlush>;
 pub type Rv39PageTable<'a> = Rv39PageTableWith<'a, VirtAddrSv39, MapperFlush>;

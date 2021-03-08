@@ -1,7 +1,7 @@
 use addr::*;
+use core::convert::TryInto;
 use core::fmt::{Debug, Error, Formatter};
 use core::ops::{Index, IndexMut};
-use core::convert::TryInto;
 
 pub type Entries32 = [PageTableEntryX32; RV32_ENTRY_COUNT];
 pub type Entries64 = [PageTableEntryX64; RV64_ENTRY_COUNT];
@@ -42,10 +42,9 @@ impl PTEIterableSlice<PageTableEntryX64> for Entries64 {
     }
 }
 
-
 pub struct PageTableWith<T: PTEIterableSlice<E>, E: PTE> {
     entries: T,
-    phantom: PhantomData<E>
+    phantom: PhantomData<E>,
 }
 
 impl<T: PTEIterableSlice<E>, E: PTE> PageTableWith<T, E> {
@@ -107,19 +106,16 @@ impl<T: PTEIterableSlice<E>, E: PTE + Debug> Debug for PageTableWith<T, E> {
     }
 }
 
-
-
-
-pub trait PTE{
-    fn is_unused(&self) -> bool ;
-    fn set_unused(&mut self) ;
-    fn flags(&self) -> PageTableFlags ;
-    fn ppn(&self) -> usize ;
+pub trait PTE {
+    fn is_unused(&self) -> bool;
+    fn set_unused(&mut self);
+    fn flags(&self) -> PageTableFlags;
+    fn ppn(&self) -> usize;
     fn ppn_u64(&self) -> u64;
-    fn addr<T: PhysicalAddress>(&self) -> T ;
+    fn addr<T: PhysicalAddress>(&self) -> T;
     fn frame<T: PhysicalAddress>(&self) -> FrameWith<T>;
-    fn set<T: PhysicalAddress>(&mut self, frame: FrameWith<T>, flags: PageTableFlags) ;
-    fn flags_mut(&mut self) -> &mut PageTableFlags ;
+    fn set<T: PhysicalAddress>(&mut self, frame: FrameWith<T>, flags: PageTableFlags);
+    fn flags_mut(&mut self) -> &mut PageTableFlags;
 }
 #[derive(Copy, Clone)]
 pub struct PageTableEntryX32(u32);
@@ -137,7 +133,7 @@ impl PTE for PageTableEntryX32 {
     fn ppn(&self) -> usize {
         self.ppn_u64().try_into().unwrap()
     }
-    fn ppn_u64(&self) -> u64{
+    fn ppn_u64(&self) -> u64 {
         (self.0 >> 10) as u64
     }
     fn addr<T: PhysicalAddress>(&self) -> T {
@@ -181,7 +177,7 @@ impl PTE for PageTableEntryX64 {
     fn ppn(&self) -> usize {
         self.ppn_u64().try_into().unwrap()
     }
-    fn ppn_u64(&self) -> u64{
+    fn ppn_u64(&self) -> u64 {
         (self.0 >> 10) as u64
     }
     fn addr<T: PhysicalAddress>(&self) -> T {
@@ -200,7 +196,10 @@ impl PTE for PageTableEntryX64 {
     }
 }
 use core::marker::PhantomData;
-pub struct PageTableEntryX64Printer<'a, P: PhysicalAddress>(&'a PageTableEntryX64, PhantomData<*const P>);
+pub struct PageTableEntryX64Printer<'a, P: PhysicalAddress>(
+    &'a PageTableEntryX64,
+    PhantomData<*const P>,
+);
 
 impl<'a, P: PhysicalAddress> Debug for PageTableEntryX64Printer<'a, P> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
@@ -211,11 +210,11 @@ impl<'a, P: PhysicalAddress> Debug for PageTableEntryX64Printer<'a, P> {
     }
 }
 
-impl PageTableEntryX64{
-    pub fn debug_sv39<'a>(&'a self)->PageTableEntryX64Printer<'a, PhysAddrSv39>{
+impl PageTableEntryX64 {
+    pub fn debug_sv39<'a>(&'a self) -> PageTableEntryX64Printer<'a, PhysAddrSv39> {
         PageTableEntryX64Printer(self, PhantomData)
     }
-    pub fn debug_sv48<'a>(&'a self)->PageTableEntryX64Printer<'a, PhysAddrSv48>{
+    pub fn debug_sv48<'a>(&'a self) -> PageTableEntryX64Printer<'a, PhysAddrSv48> {
         PageTableEntryX64Printer(self, PhantomData)
     }
 }

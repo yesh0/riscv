@@ -28,10 +28,7 @@ pub trait Mapper {
     ) -> Result<(FrameWith<Self::P>, Self::MapperFlush), UnmapError>;
 
     /// Get the reference of the specified `page` entry
-    fn ref_entry(
-        &mut self,
-        page: PageWith<Self::V>,
-    ) -> Result<&mut Self::Entry, FlagUpdateError>;
+    fn ref_entry(&mut self, page: PageWith<Self::V>) -> Result<&mut Self::Entry, FlagUpdateError>;
 
     /// Updates the flags of an existing mapping.
     fn update_flags(

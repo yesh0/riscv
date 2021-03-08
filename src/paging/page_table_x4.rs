@@ -1,6 +1,9 @@
 /// This file is for Hypervisor-related x4 page tables, including Sv32x4, Sv39x4 and Sv48x4.
 /// In fact, these x4 page tables are Phys-to-Phys page tables from GPAs to real PAs.
-use super::page_table::{PTEIterableSlice, PageTableWith, RV32_ENTRY_COUNT, RV64_ENTRY_COUNT, PageTableEntryX32, PageTableEntryX64};
+use super::page_table::{
+    PTEIterableSlice, PageTableEntryX32, PageTableEntryX64, PageTableWith, RV32_ENTRY_COUNT,
+    RV64_ENTRY_COUNT,
+};
 
 // The root page table is 4 times larger.
 pub const RV32_X4_ENTRY_COUNT: usize = RV32_ENTRY_COUNT << 2;

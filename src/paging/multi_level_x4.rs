@@ -39,9 +39,6 @@ impl MapperFlushable for MapperFlushGPT {
 pub type Rv32PageTableX4<'a> = Rv32PageTableWith<'a, GPAddrSv32X4, MapperFlushGPA>;
 pub type Rv39PageTableX4<'a> = Rv39PageTableWith<'a, GPAddrSv39X4, MapperFlushGPA>;
 pub type Rv48PageTableX4<'a> = Rv48PageTableWith<'a, GPAddrSv48X4, MapperFlushGPA>;
-pub type Rv32PageTableGuest<'a> =
-    Rv32PageTableWith<'a, VirtAddrSv32, MapperFlushGPT>;
-pub type Rv39PageTableGuest<'a> =
-    Rv39PageTableWith<'a, VirtAddrSv39, MapperFlushGPT>;
-pub type Rv48PageTableGuest<'a> =
-    Rv48PageTableWith<'a, VirtAddrSv48, MapperFlushGPT>;
+pub type Rv32PageTableGuest<'a> = Rv32PageTableWith<'a, VirtAddrSv32, MapperFlushGPT>;
+pub type Rv39PageTableGuest<'a> = Rv39PageTableWith<'a, VirtAddrSv39, MapperFlushGPT>;
+pub type Rv48PageTableGuest<'a> = Rv48PageTableWith<'a, VirtAddrSv48, MapperFlushGPT>;
