@@ -103,11 +103,11 @@ impl PageTableEntry {
     pub fn ppn(&self) -> usize {
         self.0 >> 10
     }
-    pub fn addr(&self) -> PhysAddr {
-        PhysAddr::new((self.ppn() as u64) << 12)
+    pub fn addr<T: PhysicalAddress>(&self) -> T {
+        T::new_u64((self.ppn() as u64) << 12)
     }
-    pub fn frame(&self) -> Frame {
-        Frame::of_addr(self.addr())
+    pub fn frame<T: PhysicalAddress>(&self) -> FrameWith<T> {
+        FrameWith::of_addr(self.addr())
     }
     pub fn set(&mut self, frame: Frame, mut flags: PageTableFlags) {
         // U540 will raise page fault when accessing page with A=0 or D=0
@@ -122,7 +122,7 @@ impl PageTableEntry {
 impl Debug for PageTableEntry {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         f.debug_struct("PageTableEntry")
-            .field("frame", &self.frame())
+            .field("frame", &self.frame::<PhysAddr>())
             .field("flags", &self.flags())
             .finish()
     }
