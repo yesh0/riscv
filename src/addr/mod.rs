@@ -73,10 +73,15 @@ pub use self::page::*;
 
 
 
-//#[cfg(target= "riscv64")]
+#[cfg(target_arch= "riscv64")]
 pub type VirtAddr = VirtAddrSv48;
+#[cfg(target_arch= "riscv64")]
 pub type PhysAddr = PhysAddrSv48;
 
+#[cfg(target_arch= "riscv32")]
+pub type VirtAddr = VirtAddrSv32;
+#[cfg(target_arch= "riscv32")]
+pub type PhysAddr = PhysAddrSv32;
 
 pub type Page = PageWith<VirtAddr>;
 pub type Frame = FrameWith<PhysAddr>;

@@ -3,14 +3,16 @@ use super::page_table::{PageTableFlags as F, *};
 use addr::*;
 
 pub trait Mapper {
+    type P: PhysicalAddress;
+    type V: VirtualAddress;
     /// Creates a new mapping in the page table.
     ///
     /// This function might need additional physical frames to create new page tables. These
     /// frames are allocated from the `allocator` argument. At most three frames are required.
     fn map_to(
         &mut self,
-        page: Page,
-        frame: Frame,
+        page: PageWith<Self::V>,
+        frame: FrameWith<Self::P>,
         flags: PageTableFlags,
         allocator: &mut impl FrameAllocator,
     ) -> Result<MapperFlush, MapToError>;
@@ -18,15 +20,15 @@ pub trait Mapper {
     /// Removes a mapping from the page table and returns the frame that used to be mapped.
     ///
     /// Note that no page tables or pages are deallocated.
-    fn unmap(&mut self, page: Page) -> Result<(Frame, MapperFlush), UnmapError>;
+    fn unmap(&mut self, page: PageWith<Self::V>) -> Result<(FrameWith<Self::P>, MapperFlush), UnmapError>;
 
     /// Get the reference of the specified `page` entry
-    fn ref_entry(&mut self, page: Page) -> Result<&mut PageTableEntry, FlagUpdateError>;
+    fn ref_entry(&mut self, page: PageWith<Self::V>) -> Result<&mut PageTableEntry, FlagUpdateError>;
 
     /// Updates the flags of an existing mapping.
     fn update_flags(
         &mut self,
-        page: Page,
+        page: PageWith<Self::V>,
         flags: PageTableFlags,
     ) -> Result<MapperFlush, FlagUpdateError> {
         self.ref_entry(page).map(|e| {
@@ -36,7 +38,7 @@ pub trait Mapper {
     }
 
     /// Return the frame that the specified page is mapped to.
-    fn translate_page(&mut self, page: Page) -> Option<Frame> {
+    fn translate_page(&mut self, page: PageWith<Self::V>) -> Option<Frame> {
         match self.ref_entry(page) {
             Ok(e) => {
                 if e.is_unused() {
@@ -52,28 +54,28 @@ pub trait Mapper {
     /// Maps the given frame to the virtual page with the same address.
     fn identity_map(
         &mut self,
-        frame: Frame,
+        frame: FrameWith<Self::P>,
         flags: PageTableFlags,
         allocator: &mut impl FrameAllocator,
     ) -> Result<MapperFlush, MapToError> {
-        let page = Page::of_addr(VirtAddr::new(frame.start_address().as_usize()));
+        let page = PageWith::of_addr(Self::V::new(frame.start_address().as_usize()));
         self.map_to(page, frame, flags, allocator)
     }
 }
 
 #[must_use = "Page Table changes must be flushed or ignored."]
-pub struct MapperFlush(Page);
+pub struct MapperFlush(usize);
 
 impl MapperFlush {
     /// Create a new flush promise
-    pub(crate) fn new(page: Page) -> Self {
-        MapperFlush(page)
+    pub(crate) fn new<T: VirtualAddress>(page: PageWith<T>) -> Self {
+        MapperFlush(page.start_address().as_usize())
     }
 
     /// Flush the page from the TLB to ensure that the newest mapping is used.
     pub fn flush(self) {
         unsafe {
-            crate::asm::sfence_vma(0, self.0.start_address().as_usize());
+            crate::asm::sfence_vma(0, self.0);
         }
     }
 
@@ -456,8 +458,20 @@ impl<'a> Mapper for RecursivePageTable<'a> {
     }
 }
 
+pub trait MapperExt{
+    type Page;
+    type Frame;
+}
+
+impl<T: Mapper> MapperExt for T{
+    type Page = PageWith<<T as Mapper>::V>;
+    type Frame = FrameWith<<T as Mapper>::P>;
+}
+
 #[cfg(riscv64)]
 impl<'a> Mapper for RecursivePageTable<'a> {
+    type P = PhysAddr;
+    type V = VirtAddr;
     fn map_to(
         &mut self,
         page: Page,

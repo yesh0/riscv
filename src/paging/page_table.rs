@@ -43,7 +43,7 @@ impl<T: PTEIterableSlice> PageTableWith<T> {
     ///  it can be anywhere in the main memory.
     /// Denote `recursive_index` by K, then virtual address of the root page table is
     ///  (K, K+1, 0) in Sv32, and (K, K, K+1, 0) in Sv39, and (K, K, K, K+1, 0) in Sv48.
-    pub fn set_recursive(&mut self, recursive_index: usize, frame: Frame) {
+    pub fn set_recursive<F: PhysicalAddress>(&mut self, recursive_index: usize, frame: FrameWith<F>) {
         self[recursive_index].set(frame.clone(), EF::VALID);
         self[recursive_index + 1].set(frame.clone(), EF::VALID | EF::READABLE | EF::WRITABLE);
     }
@@ -53,7 +53,7 @@ impl<T: PTEIterableSlice> PageTableWith<T> {
     pub fn map_identity(&mut self, p2idx: usize, flags: PageTableFlags) {
         self.entries
             .pte_index_mut(p2idx)
-            .set(Frame::of_addr(PhysAddr::new((p2idx as u64) << 22)), flags);
+            .set(FrameWith::of_addr(PhysAddrSv32::new((p2idx as u64) << 22)), flags);
     }
 }
 
@@ -109,7 +109,7 @@ impl PageTableEntry {
     pub fn frame<T: PhysicalAddress>(&self) -> FrameWith<T> {
         FrameWith::of_addr(self.addr())
     }
-    pub fn set(&mut self, frame: Frame, mut flags: PageTableFlags) {
+    pub fn set<T: PhysicalAddress>(&mut self, frame: FrameWith<T>, mut flags: PageTableFlags) {
         // U540 will raise page fault when accessing page with A=0 or D=0
         flags |= EF::ACCESSED | EF::DIRTY;
         self.0 = (frame.number() << 10) | flags.bits();
