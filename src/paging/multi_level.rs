@@ -7,19 +7,18 @@ use core::marker::PhantomData;
 
 pub struct Rv32PageTableWith<
     'a,
-    T: PTEIterableSlice,
     V: VirtualAddress + AddressL2,
     FL: MapperFlushable,
 > {
-    root_table: &'a mut PageTableWith<T>,
+    root_table: &'a mut PageTableX32,
     linear_offset: u64, // VA = PA + linear_offset
     phantom: PhantomData<*const (V, FL)>,
 }
 
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable>
-    Rv32PageTableWith<'a, T, V, FL>
+impl<'a, V: VirtualAddress + AddressL2, FL: MapperFlushable>
+    Rv32PageTableWith<'a, V, FL>
 {
-    pub fn new(table: &'a mut PageTableWith<T>, linear_offset: usize) -> Self {
+    pub fn new(table: &'a mut PageTableX32, linear_offset: usize) -> Self {
         Rv32PageTableWith {
             root_table: table,
             linear_offset: linear_offset as u64,
@@ -48,12 +47,13 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable
     }
 }
 
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable> Mapper
-    for Rv32PageTableWith<'a, T, V, FL>
+impl<'a, V: VirtualAddress + AddressL2, FL: MapperFlushable> Mapper
+    for Rv32PageTableWith<'a, V, FL>
 {
     type P = PhysAddrSv32;
     type V = V;
     type MapperFlush = FL;
+    type Entry = PageTableEntryX32;
     fn map_to(
         &mut self,
         page: <Self as MapperExt>::Page,
@@ -90,12 +90,12 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable
     fn ref_entry(
         &mut self,
         page: <Self as MapperExt>::Page,
-    ) -> Result<&mut PageTableEntry, FlagUpdateError> {
+    ) -> Result<&mut PageTableEntryX32, FlagUpdateError> {
         if self.root_table[page.p2_index()].is_unused() {
             return Err(FlagUpdateError::PageNotMapped);
         }
         let p1_frame = self.root_table[page.p2_index()].frame::<PhysAddrSv32>();
-        let p1_table: &mut PageTable = unsafe { p1_frame.as_kernel_mut(self.linear_offset) };
+        let p1_table: &mut PageTableX32 = unsafe { p1_frame.as_kernel_mut(self.linear_offset) };
         Ok(&mut p1_table[page.p1_index()])
     }
 }
@@ -104,19 +104,18 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable
 
 pub struct Rv39PageTableWith<
     'a,
-    T: PTEIterableSlice,
     V: VirtualAddress + AddressL3,
     FL: MapperFlushable,
 > {
-    root_table: &'a mut PageTableWith<T>,
+    root_table: &'a mut PageTableX64,
     linear_offset: u64, // VA = PA + linear_offset
     phantom: PhantomData<*const (V, FL)>,
 }
 
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable>
-    Rv39PageTableWith<'a, T, V, FL>
+impl<'a, V: VirtualAddress + AddressL3, FL: MapperFlushable>
+    Rv39PageTableWith<'a, V, FL>
 {
-    pub fn new(table: &'a mut PageTableWith<T>, linear_offset: usize) -> Self {
+    pub fn new(table: &'a mut PageTableX64, linear_offset: usize) -> Self {
         Rv39PageTableWith {
             root_table: table,
             linear_offset: linear_offset as u64,
@@ -158,12 +157,13 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable
     }
 }
 
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable> Mapper
-    for Rv39PageTableWith<'a, T, V, FL>
+impl<'a, V: VirtualAddress + AddressL3, FL: MapperFlushable> Mapper
+    for Rv39PageTableWith<'a, V, FL>
 {
     type P = PhysAddrSv39;
     type V = V;
     type MapperFlush = FL;
+    type Entry = PageTableEntryX64;
     fn map_to(
         &mut self,
         page: <Self as MapperExt>::Page,
@@ -206,18 +206,18 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable
     fn ref_entry(
         &mut self,
         page: <Self as MapperExt>::Page,
-    ) -> Result<&mut PageTableEntry, FlagUpdateError> {
+    ) -> Result<&mut PageTableEntryX64, FlagUpdateError> {
         if self.root_table[page.p3_index()].is_unused() {
             return Err(FlagUpdateError::PageNotMapped);
         }
         let p2_frame = self.root_table[page.p3_index()].frame::<PhysAddrSv39>();
-        let p2_table: &mut PageTable = unsafe { p2_frame.as_kernel_mut(self.linear_offset) };
+        let p2_table: &mut PageTableX64 = unsafe { p2_frame.as_kernel_mut(self.linear_offset) };
         if p2_table[page.p2_index()].is_unused() {
             return Err(FlagUpdateError::PageNotMapped);
         }
 
         let p1_frame = p2_table[page.p2_index()].frame::<PhysAddrSv39>();
-        let p1_table: &mut PageTable = unsafe { p1_frame.as_kernel_mut(self.linear_offset) };
+        let p1_table: &mut PageTableX64 = unsafe { p1_frame.as_kernel_mut(self.linear_offset) };
         Ok(&mut p1_table[page.p1_index()])
     }
 }
@@ -226,19 +226,18 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable
 
 pub struct Rv48PageTableWith<
     'a,
-    T: PTEIterableSlice,
     V: VirtualAddress + AddressL4,
     FL: MapperFlushable,
 > {
-    root_table: &'a mut PageTableWith<T>,
+    root_table: &'a mut PageTableX64,
     linear_offset: u64, // VA = PA + linear_offset
     phantom: PhantomData<*const (V, FL)>,
 }
 
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable>
-    Rv48PageTableWith<'a, T, V, FL>
+impl<'a, V: VirtualAddress + AddressL4, FL: MapperFlushable>
+    Rv48PageTableWith<'a, V, FL>
 {
-    pub fn new(table: &'a mut PageTableWith<T>, linear_offset: usize) -> Self {
+    pub fn new(table: &'a mut PageTableX64, linear_offset: usize) -> Self {
         Rv48PageTableWith {
             root_table: table,
             linear_offset: linear_offset as u64,
@@ -295,12 +294,13 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable
     }
 }
 
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable> Mapper
-    for Rv48PageTableWith<'a, T, V, FL>
+impl<'a, V: VirtualAddress + AddressL4, FL: MapperFlushable> Mapper
+    for Rv48PageTableWith<'a, V, FL>
 {
     type P = PhysAddrSv48;
     type V = V;
     type MapperFlush = FL;
+    type Entry = PageTableEntryX64;
     fn map_to(
         &mut self,
         page: <Self as MapperExt>::Page,
@@ -354,30 +354,29 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable
     fn ref_entry(
         &mut self,
         page: <Self as MapperExt>::Page,
-    ) -> Result<&mut PageTableEntry, FlagUpdateError> {
+    ) -> Result<&mut PageTableEntryX64, FlagUpdateError> {
         if self.root_table[page.p4_index()].is_unused() {
             return Err(FlagUpdateError::PageNotMapped);
         }
         let p3_frame = self.root_table[page.p4_index()].frame::<PhysAddrSv48>();
-        let p3_table: &mut PageTable = unsafe { p3_frame.as_kernel_mut(self.linear_offset) };
+        let p3_table: &mut PageTableX64 = unsafe { p3_frame.as_kernel_mut(self.linear_offset) };
 
         if p3_table[page.p3_index()].is_unused() {
             return Err(FlagUpdateError::PageNotMapped);
         }
         let p2_frame = p3_table[page.p3_index()].frame::<PhysAddrSv48>();
-        let p2_table: &mut PageTable = unsafe { p2_frame.as_kernel_mut(self.linear_offset) };
+        let p2_table: &mut PageTableX64 = unsafe { p2_frame.as_kernel_mut(self.linear_offset) };
         if p2_table[page.p2_index()].is_unused() {
             return Err(FlagUpdateError::PageNotMapped);
         }
 
         let p1_frame = p2_table[page.p2_index()].frame::<PhysAddrSv48>();
-        let p1_table: &mut PageTable = unsafe { p1_frame.as_kernel_mut(self.linear_offset) };
+        let p1_table: &mut PageTableX64 = unsafe { p1_frame.as_kernel_mut(self.linear_offset) };
         Ok(&mut p1_table[page.p1_index()])
     }
 }
 
-use crate::paging::page_table::Entries;
 
-pub type Rv32PageTable<'a> = Rv32PageTableWith<'a, Entries, VirtAddrSv32, MapperFlush>;
-pub type Rv39PageTable<'a> = Rv39PageTableWith<'a, Entries, VirtAddrSv39, MapperFlush>;
-pub type Rv48PageTable<'a> = Rv48PageTableWith<'a, Entries, VirtAddrSv48, MapperFlush>;
+pub type Rv32PageTable<'a> = Rv32PageTableWith<'a, VirtAddrSv32, MapperFlush>;
+pub type Rv39PageTable<'a> = Rv39PageTableWith<'a, VirtAddrSv39, MapperFlush>;
+pub type Rv48PageTable<'a> = Rv48PageTableWith<'a, VirtAddrSv48, MapperFlush>;

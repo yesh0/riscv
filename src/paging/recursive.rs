@@ -6,6 +6,7 @@ pub trait Mapper {
     type P: PhysicalAddress;
     type V: VirtualAddress;
     type MapperFlush: MapperFlushable;
+    type Entry: PTE;
     /// Creates a new mapping in the page table.
     ///
     /// This function might need additional physical frames to create new page tables. These
@@ -30,7 +31,7 @@ pub trait Mapper {
     fn ref_entry(
         &mut self,
         page: PageWith<Self::V>,
-    ) -> Result<&mut PageTableEntry, FlagUpdateError>;
+    ) -> Result<&mut Self::Entry, FlagUpdateError>;
 
     /// Updates the flags of an existing mapping.
     fn update_flags(
@@ -430,6 +431,10 @@ impl<'a> RecursivePageTable<'a> {
 
 #[cfg(riscv32)]
 impl<'a> Mapper for RecursivePageTable<'a> {
+    type P = PhysAddrSv32;
+    type V = VirtAddrSv32;
+    type MapperFlush = MapperFlush;
+    type Entry = PageTableEntryX32;
     fn map_to(
         &mut self,
         page: Page,
@@ -485,6 +490,7 @@ impl<'a> Mapper for RecursivePageTable<'a> {
     type P = PhysAddr;
     type V = VirtAddr;
     type MapperFlush = MapperFlush;
+    type Entry = PageTableEntry;
     fn map_to(
         &mut self,
         page: Page,
