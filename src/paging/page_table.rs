@@ -43,7 +43,11 @@ impl<T: PTEIterableSlice> PageTableWith<T> {
     ///  it can be anywhere in the main memory.
     /// Denote `recursive_index` by K, then virtual address of the root page table is
     ///  (K, K+1, 0) in Sv32, and (K, K, K+1, 0) in Sv39, and (K, K, K, K+1, 0) in Sv48.
-    pub fn set_recursive<F: PhysicalAddress>(&mut self, recursive_index: usize, frame: FrameWith<F>) {
+    pub fn set_recursive<F: PhysicalAddress>(
+        &mut self,
+        recursive_index: usize,
+        frame: FrameWith<F>,
+    ) {
         self[recursive_index].set(frame.clone(), EF::VALID);
         self[recursive_index + 1].set(frame.clone(), EF::VALID | EF::READABLE | EF::WRITABLE);
     }
@@ -51,9 +55,10 @@ impl<T: PTEIterableSlice> PageTableWith<T> {
     /// Setup identity map for the page with first level page table index.
     #[cfg(riscv32)]
     pub fn map_identity(&mut self, p2idx: usize, flags: PageTableFlags) {
-        self.entries
-            .pte_index_mut(p2idx)
-            .set(FrameWith::of_addr(PhysAddrSv32::new((p2idx as u64) << 22)), flags);
+        self.entries.pte_index_mut(p2idx).set(
+            FrameWith::of_addr(PhysAddrSv32::new((p2idx as u64) << 22)),
+            flags,
+        );
     }
 }
 

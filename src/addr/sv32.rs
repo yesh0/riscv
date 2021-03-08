@@ -1,10 +1,10 @@
+use super::*;
 use bit_field::BitField;
 use core::convert::TryInto;
-use super::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VirtAddrSv32(u32);
-impl Address for VirtAddrSv32{
-    fn new(addr: usize)->Self{
+impl Address for VirtAddrSv32 {
+    fn new(addr: usize) -> Self {
         VirtAddrSv32(addr.try_into().unwrap())
     }
     fn as_usize(&self) -> usize {
@@ -20,13 +20,13 @@ impl Address for VirtAddrSv32{
         VirtAddrSv32((self.0 >> 12) << 12)
     }
 }
-impl VirtualAddress for VirtAddrSv32{
+impl VirtualAddress for VirtAddrSv32 {
     unsafe fn as_mut<'a, 'b, T>(&'a self) -> &'b mut T {
         &mut *(self.0 as *mut T)
     }
 }
 
-impl AddressL2 for VirtAddrSv32{
+impl AddressL2 for VirtAddrSv32 {
     fn p2_index(&self) -> usize {
         self.0.get_bits(22..32) as usize
     }
@@ -42,11 +42,11 @@ impl AddressL2 for VirtAddrSv32{
     }
 }
 
-impl AddressX32 for VirtAddrSv32{
-    fn new_u32(addr: u32) -> Self{
+impl AddressX32 for VirtAddrSv32 {
+    fn new_u32(addr: u32) -> Self {
         VirtAddrSv32(addr)
     }
-    fn as_u32(&self)->u32{
+    fn as_u32(&self) -> u32 {
         self.0
     }
 }
@@ -75,18 +75,17 @@ impl Address for PhysAddrSv32 {
     }
 }
 
-
-impl AddressX64 for PhysAddrSv32{
-    fn new_u64(addr: u64) -> Self{
+impl AddressX64 for PhysAddrSv32 {
+    fn new_u64(addr: u64) -> Self {
         assert!(
             addr.get_bits(34..64) == 0,
             "Sv32 does not allow pa 34..64!=0"
         );
         PhysAddrSv32(addr)
     }
-    fn as_u64(&self)->u64{
+    fn as_u64(&self) -> u64 {
         self.0
     }
 }
 
-impl PhysicalAddress for PhysAddrSv32{}
+impl PhysicalAddress for PhysAddrSv32 {}

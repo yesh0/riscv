@@ -21,10 +21,16 @@ pub trait Mapper {
     /// Removes a mapping from the page table and returns the frame that used to be mapped.
     ///
     /// Note that no page tables or pages are deallocated.
-    fn unmap(&mut self, page: PageWith<Self::V>) -> Result<(FrameWith<Self::P>, Self::MapperFlush), UnmapError>;
+    fn unmap(
+        &mut self,
+        page: PageWith<Self::V>,
+    ) -> Result<(FrameWith<Self::P>, Self::MapperFlush), UnmapError>;
 
     /// Get the reference of the specified `page` entry
-    fn ref_entry(&mut self, page: PageWith<Self::V>) -> Result<&mut PageTableEntry, FlagUpdateError>;
+    fn ref_entry(
+        &mut self,
+        page: PageWith<Self::V>,
+    ) -> Result<&mut PageTableEntry, FlagUpdateError>;
 
     /// Updates the flags of an existing mapping.
     fn update_flags(
@@ -64,9 +70,9 @@ pub trait Mapper {
     }
 }
 
-pub trait MapperFlushable{
+pub trait MapperFlushable {
     /// Create a new flush promise
-    fn new<T: VirtualAddress>(page: PageWith<T>)->Self;
+    fn new<T: VirtualAddress>(page: PageWith<T>) -> Self;
     /// Flush the page from the TLB to ensure that the newest mapping is used.
     fn flush(self);
     /// Don't flush the TLB and silence the “must be used” warning.
@@ -86,7 +92,6 @@ impl MapperFlushable for MapperFlush {
         }
     }
 
-    
     fn ignore(self) {}
 }
 
@@ -465,12 +470,12 @@ impl<'a> Mapper for RecursivePageTable<'a> {
     }
 }
 
-pub trait MapperExt{
+pub trait MapperExt {
     type Page;
     type Frame;
 }
 
-impl<T: Mapper> MapperExt for T{
+impl<T: Mapper> MapperExt for T {
     type Page = PageWith<<T as Mapper>::V>;
     type Frame = FrameWith<<T as Mapper>::P>;
 }

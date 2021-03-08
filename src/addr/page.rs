@@ -1,44 +1,36 @@
 pub use super::*;
 pub use bit_field::BitField;
 
-pub trait PageWithL4{
-    fn p4_index(&self)->usize;
-    fn p3_index(&self)->usize;
-    fn p2_index(&self)->usize;
-    fn p1_index(&self)->usize;
+pub trait PageWithL4 {
+    fn p4_index(&self) -> usize;
+    fn p3_index(&self) -> usize;
+    fn p2_index(&self) -> usize;
+    fn p1_index(&self) -> usize;
     fn from_page_table_indices(
         p4_index: usize,
         p3_index: usize,
         p2_index: usize,
         p1_index: usize,
-    )->Self;
+    ) -> Self;
 }
 
-pub trait PageWithL3{
-    fn p3_index(&self)->usize;
-    fn p2_index(&self)->usize;
-    fn p1_index(&self)->usize;
-    fn from_page_table_indices(
-        p3_index: usize,
-        p2_index: usize,
-        p1_index: usize,
-    )->Self;
+pub trait PageWithL3 {
+    fn p3_index(&self) -> usize;
+    fn p2_index(&self) -> usize;
+    fn p1_index(&self) -> usize;
+    fn from_page_table_indices(p3_index: usize, p2_index: usize, p1_index: usize) -> Self;
 }
 
-
-pub trait PageWithL2{
-    fn p2_index(&self)->usize;
-    fn p1_index(&self)->usize;
-    fn from_page_table_indices(
-        p2_index: usize,
-        p1_index: usize,
-    )->Self;
+pub trait PageWithL2 {
+    fn p2_index(&self) -> usize;
+    fn p1_index(&self) -> usize;
+    fn from_page_table_indices(p2_index: usize, p1_index: usize) -> Self;
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PageWith<T: VirtualAddress>(T);
 
-impl<T: AddressL4 + VirtualAddress> PageWithL4 for PageWith<T>{
+impl<T: AddressL4 + VirtualAddress> PageWithL4 for PageWith<T> {
     fn p4_index(&self) -> usize {
         self.0.p4_index()
     }
@@ -57,10 +49,12 @@ impl<T: AddressL4 + VirtualAddress> PageWithL4 for PageWith<T>{
         p2_index: usize,
         p1_index: usize,
     ) -> Self {
-        PageWith::of_addr(T::from_page_table_indices(p4_index, p3_index, p2_index, p1_index, 0))
+        PageWith::of_addr(T::from_page_table_indices(
+            p4_index, p3_index, p2_index, p1_index, 0,
+        ))
     }
 }
-impl<T: AddressL3 + VirtualAddress> PageWithL3 for PageWith<T>{
+impl<T: AddressL3 + VirtualAddress> PageWithL3 for PageWith<T> {
     fn p3_index(&self) -> usize {
         self.0.p3_index()
     }
@@ -70,25 +64,18 @@ impl<T: AddressL3 + VirtualAddress> PageWithL3 for PageWith<T>{
     fn p1_index(&self) -> usize {
         self.0.p1_index()
     }
-    fn from_page_table_indices(
-        p3_index: usize,
-        p2_index: usize,
-        p1_index: usize,
-    ) -> Self {
+    fn from_page_table_indices(p3_index: usize, p2_index: usize, p1_index: usize) -> Self {
         PageWith::of_addr(T::from_page_table_indices(p3_index, p2_index, p1_index, 0))
     }
 }
-impl<T: AddressL2 + VirtualAddress> PageWithL2 for PageWith<T>{
+impl<T: AddressL2 + VirtualAddress> PageWithL2 for PageWith<T> {
     fn p2_index(&self) -> usize {
         self.0.p2_index()
     }
     fn p1_index(&self) -> usize {
         self.0.p1_index()
     }
-    fn from_page_table_indices(
-        p2_index: usize,
-        p1_index: usize,
-    ) -> Self {
+    fn from_page_table_indices(p2_index: usize, p1_index: usize) -> Self {
         PageWith::of_addr(T::from_page_table_indices(p2_index, p1_index, 0))
     }
 }
@@ -105,19 +92,15 @@ impl<T: VirtualAddress> PageWith<T> {
         self.0.clone()
     }
 
-
     pub fn number(&self) -> usize {
         self.0.page_number()
     }
 }
 
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FrameWith<T: PhysicalAddress>(T);
 
-
-
-impl<T: AddressL4 + PhysicalAddress> PageWithL4 for FrameWith<T>{
+impl<T: AddressL4 + PhysicalAddress> PageWithL4 for FrameWith<T> {
     fn p4_index(&self) -> usize {
         self.0.p4_index()
     }
@@ -136,10 +119,12 @@ impl<T: AddressL4 + PhysicalAddress> PageWithL4 for FrameWith<T>{
         p2_index: usize,
         p1_index: usize,
     ) -> Self {
-        FrameWith::of_addr(T::from_page_table_indices(p4_index, p3_index, p2_index, p1_index, 0))
+        FrameWith::of_addr(T::from_page_table_indices(
+            p4_index, p3_index, p2_index, p1_index, 0,
+        ))
     }
 }
-impl<T: AddressL3 + PhysicalAddress> PageWithL3 for FrameWith<T>{
+impl<T: AddressL3 + PhysicalAddress> PageWithL3 for FrameWith<T> {
     fn p3_index(&self) -> usize {
         self.0.p3_index()
     }
@@ -149,29 +134,21 @@ impl<T: AddressL3 + PhysicalAddress> PageWithL3 for FrameWith<T>{
     fn p1_index(&self) -> usize {
         self.0.p1_index()
     }
-    fn from_page_table_indices(
-        p3_index: usize,
-        p2_index: usize,
-        p1_index: usize,
-    ) -> Self {
+    fn from_page_table_indices(p3_index: usize, p2_index: usize, p1_index: usize) -> Self {
         FrameWith::of_addr(T::from_page_table_indices(p3_index, p2_index, p1_index, 0))
     }
 }
-impl<T: AddressL2 + PhysicalAddress> PageWithL2 for FrameWith<T>{
+impl<T: AddressL2 + PhysicalAddress> PageWithL2 for FrameWith<T> {
     fn p2_index(&self) -> usize {
         self.0.p2_index()
     }
     fn p1_index(&self) -> usize {
         self.0.p1_index()
     }
-    fn from_page_table_indices(
-        p2_index: usize,
-        p1_index: usize,
-    ) -> Self {
+    fn from_page_table_indices(p2_index: usize, p1_index: usize) -> Self {
         FrameWith::of_addr(T::from_page_table_indices(p2_index, p1_index, 0))
     }
 }
-
 
 impl<T: PhysicalAddress> FrameWith<T> {
     pub fn of_addr(addr: T) -> Self {

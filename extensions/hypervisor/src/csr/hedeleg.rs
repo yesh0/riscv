@@ -1,5 +1,6 @@
 use riscv_hypervisor_extension_proc_macro::generate_csr;
-generate_csr!("Hedeleg
+generate_csr!(
+    "Hedeleg
 1538
 ex0,0,0,number,Instruction address misaligned
 ex1,1,1,number,Instruction access fault
@@ -14,4 +15,5 @@ ex12,12,12,number,Instruction page fault
 ex13,13,13,number,Load page fault 
 ex15,15,15,number,Store/AMO page fault 
 end
-Hypervisor Exception Delegation Register.");
+Hypervisor Exception Delegation Register."
+);

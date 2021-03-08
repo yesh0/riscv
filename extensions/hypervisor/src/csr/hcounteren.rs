@@ -1,5 +1,6 @@
 use riscv_hypervisor_extension_proc_macro::generate_csr;
-generate_csr!("Hcounteren
+generate_csr!(
+    "Hcounteren
 3602
 cy,0,0,number,
 tm,1,1,number,
@@ -34,4 +35,5 @@ hpm29,29,29,number,
 hpm30,30,30,number,
 hpm31,31,31,number,
 end
-Hypervisor Guest External Interrupt Pending Register.");
+Hypervisor Guest External Interrupt Pending Register."
+);

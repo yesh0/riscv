@@ -11,8 +11,6 @@ pub fn my_start(argc: isize, argv: *const *const u8) -> isize {
 
 use core::panic::PanicInfo;
 #[panic_handler]
-fn onpanic(p: &PanicInfo)->!{
-    loop{
-
-    }
+fn onpanic(p: &PanicInfo) -> ! {
+    loop {}
 }

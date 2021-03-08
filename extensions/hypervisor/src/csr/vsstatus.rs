@@ -1,5 +1,6 @@
 use riscv_hypervisor_extension_proc_macro::generate_csr;
-generate_csr!("Vstatus
+generate_csr!(
+    "Vstatus
 512
 sd,63,60,number,
 uxl,33,32,UxlValues,Uxl32=1;Uxl64;Uxl128,Effective User XLEN.
@@ -12,4 +13,5 @@ ube,6,6,number,
 spie,5,5,number,
 sie,1,1,number,
 end
-Hypervisor Guest External Interrupt Pending Register.");
+Hypervisor Guest External Interrupt Pending Register."
+);

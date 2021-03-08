@@ -5,19 +5,25 @@ use crate::addr::*;
 use core::marker::PhantomData;
 /// This struct is a two level page table with `Mapper` trait implemented.
 
-pub struct Rv32PageTableWith<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable> {
+pub struct Rv32PageTableWith<
+    'a,
+    T: PTEIterableSlice,
+    V: VirtualAddress + AddressL2,
+    FL: MapperFlushable,
+> {
     root_table: &'a mut PageTableWith<T>,
     linear_offset: u64, // VA = PA + linear_offset
-    phantom: PhantomData<*const (V, FL)>
+    phantom: PhantomData<*const (V, FL)>,
 }
 
-
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable> Rv32PageTableWith<'a, T, V, FL> {
+impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable>
+    Rv32PageTableWith<'a, T, V, FL>
+{
     pub fn new(table: &'a mut PageTableWith<T>, linear_offset: usize) -> Self {
         Rv32PageTableWith {
             root_table: table,
             linear_offset: linear_offset as u64,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -27,7 +33,9 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable
         allocator: &mut impl FrameAllocator,
     ) -> Result<&mut PageTable, MapToError> {
         if self.root_table[p2_index].is_unused() {
-            let frame = allocator.alloc::<<Self as Mapper>::P>().ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator
+                .alloc::<<Self as Mapper>::P>()
+                .ok_or(MapToError::FrameAllocationFailed)?;
             self.root_table[p2_index].set(frame.clone(), F::VALID);
             let p1_table: &mut PageTable = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p1_table.zero();
@@ -40,8 +48,9 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable
     }
 }
 
-
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable> Mapper for Rv32PageTableWith<'a, T, V, FL> {
+impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable> Mapper
+    for Rv32PageTableWith<'a, T, V, FL>
+{
     type P = PhysAddrSv32;
     type V = V;
     type MapperFlush = FL;
@@ -60,7 +69,10 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable
         Ok(Self::MapperFlush::new(page))
     }
 
-    fn unmap(&mut self, page: <Self as MapperExt>::Page) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError> {
+    fn unmap(
+        &mut self,
+        page: <Self as MapperExt>::Page,
+    ) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError> {
         if self.root_table[page.p2_index()].is_unused() {
             return Err(UnmapError::PageNotMapped);
         }
@@ -75,7 +87,10 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable
         Ok((frame, Self::MapperFlush::new(page)))
     }
 
-    fn ref_entry(&mut self, page: <Self as MapperExt>::Page) -> Result<&mut PageTableEntry, FlagUpdateError> {
+    fn ref_entry(
+        &mut self,
+        page: <Self as MapperExt>::Page,
+    ) -> Result<&mut PageTableEntry, FlagUpdateError> {
         if self.root_table[page.p2_index()].is_unused() {
             return Err(FlagUpdateError::PageNotMapped);
         }
@@ -87,19 +102,25 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL2, FL: MapperFlushable
 
 /// This struct is a three level page table with `Mapper` trait implemented.
 
-pub struct Rv39PageTableWith<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable> {
+pub struct Rv39PageTableWith<
+    'a,
+    T: PTEIterableSlice,
+    V: VirtualAddress + AddressL3,
+    FL: MapperFlushable,
+> {
     root_table: &'a mut PageTableWith<T>,
     linear_offset: u64, // VA = PA + linear_offset
-    phantom: PhantomData<*const (V, FL)>
+    phantom: PhantomData<*const (V, FL)>,
 }
 
-
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable> Rv39PageTableWith<'a, T, V, FL> {
+impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable>
+    Rv39PageTableWith<'a, T, V, FL>
+{
     pub fn new(table: &'a mut PageTableWith<T>, linear_offset: usize) -> Self {
         Rv39PageTableWith {
             root_table: table,
             linear_offset: linear_offset as u64,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -110,7 +131,9 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable
         allocator: &mut impl FrameAllocator,
     ) -> Result<&mut PageTable, MapToError> {
         let p2_table = if self.root_table[p3_index].is_unused() {
-            let frame = allocator.alloc::<<Self as Mapper>::P>().ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator
+                .alloc::<<Self as Mapper>::P>()
+                .ok_or(MapToError::FrameAllocationFailed)?;
             self.root_table[p3_index].set(frame.clone(), F::VALID);
             let p2_table: &mut PageTable = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p2_table.zero();
@@ -120,7 +143,9 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable
             unsafe { frame.as_kernel_mut(self.linear_offset) }
         };
         if p2_table[p2_index].is_unused() {
-            let frame = allocator.alloc::<<Self as Mapper>::P>().ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator
+                .alloc::<<Self as Mapper>::P>()
+                .ok_or(MapToError::FrameAllocationFailed)?;
             p2_table[p2_index].set(frame.clone(), F::VALID);
             let p1_table: &mut PageTable = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p1_table.zero();
@@ -133,8 +158,9 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable
     }
 }
 
-
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable> Mapper for Rv39PageTableWith<'a, T, V, FL> {
+impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable> Mapper
+    for Rv39PageTableWith<'a, T, V, FL>
+{
     type P = PhysAddrSv39;
     type V = V;
     type MapperFlush = FL;
@@ -153,7 +179,10 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable
         Ok(Self::MapperFlush::new(page))
     }
 
-    fn unmap(&mut self, page: <Self as MapperExt>::Page) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError> {
+    fn unmap(
+        &mut self,
+        page: <Self as MapperExt>::Page,
+    ) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError> {
         if self.root_table[page.p3_index()].is_unused() {
             return Err(UnmapError::PageNotMapped);
         }
@@ -174,7 +203,10 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable
         Ok((frame, Self::MapperFlush::new(page)))
     }
 
-    fn ref_entry(&mut self, page: <Self as MapperExt>::Page) -> Result<&mut PageTableEntry, FlagUpdateError> {
+    fn ref_entry(
+        &mut self,
+        page: <Self as MapperExt>::Page,
+    ) -> Result<&mut PageTableEntry, FlagUpdateError> {
         if self.root_table[page.p3_index()].is_unused() {
             return Err(FlagUpdateError::PageNotMapped);
         }
@@ -192,19 +224,25 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL3, FL: MapperFlushable
 
 /// This struct is a four level page table with `Mapper` trait implemented.
 
-pub struct Rv48PageTableWith<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable> {
+pub struct Rv48PageTableWith<
+    'a,
+    T: PTEIterableSlice,
+    V: VirtualAddress + AddressL4,
+    FL: MapperFlushable,
+> {
     root_table: &'a mut PageTableWith<T>,
     linear_offset: u64, // VA = PA + linear_offset
-    phantom: PhantomData<*const (V, FL)>
+    phantom: PhantomData<*const (V, FL)>,
 }
 
-
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable> Rv48PageTableWith<'a, T, V, FL> {
+impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable>
+    Rv48PageTableWith<'a, T, V, FL>
+{
     pub fn new(table: &'a mut PageTableWith<T>, linear_offset: usize) -> Self {
         Rv48PageTableWith {
             root_table: table,
             linear_offset: linear_offset as u64,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -216,7 +254,9 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable
         allocator: &mut impl FrameAllocator,
     ) -> Result<&mut PageTable, MapToError> {
         let p3_table = if self.root_table[p4_index].is_unused() {
-            let frame = allocator.alloc::<<Self as Mapper>::P>().ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator
+                .alloc::<<Self as Mapper>::P>()
+                .ok_or(MapToError::FrameAllocationFailed)?;
             self.root_table[p4_index].set(frame.clone(), F::VALID);
             let p3_table: &mut PageTable = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p3_table.zero();
@@ -227,7 +267,9 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable
         };
 
         let p2_table = if p3_table[p3_index].is_unused() {
-            let frame = allocator.alloc::<<Self as Mapper>::P>().ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator
+                .alloc::<<Self as Mapper>::P>()
+                .ok_or(MapToError::FrameAllocationFailed)?;
             p3_table[p3_index].set(frame.clone(), F::VALID);
             let p2_table: &mut PageTable = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p2_table.zero();
@@ -238,7 +280,9 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable
         };
 
         if p2_table[p2_index].is_unused() {
-            let frame = allocator.alloc::<<Self as Mapper>::P>().ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator
+                .alloc::<<Self as Mapper>::P>()
+                .ok_or(MapToError::FrameAllocationFailed)?;
             p2_table[p2_index].set(frame.clone(), F::VALID);
             let p1_table: &mut PageTable = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p1_table.zero();
@@ -251,8 +295,9 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable
     }
 }
 
-
-impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable> Mapper for Rv48PageTableWith<'a, T, V, FL> {
+impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable> Mapper
+    for Rv48PageTableWith<'a, T, V, FL>
+{
     type P = PhysAddrSv48;
     type V = V;
     type MapperFlush = FL;
@@ -276,7 +321,10 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable
         Ok(Self::MapperFlush::new(page))
     }
 
-    fn unmap(&mut self, page: <Self as MapperExt>::Page) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError> {
+    fn unmap(
+        &mut self,
+        page: <Self as MapperExt>::Page,
+    ) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError> {
         if self.root_table[page.p4_index()].is_unused() {
             return Err(UnmapError::PageNotMapped);
         }
@@ -303,7 +351,10 @@ impl<'a, T: PTEIterableSlice, V: VirtualAddress + AddressL4, FL: MapperFlushable
         Ok((frame, Self::MapperFlush::new(page)))
     }
 
-    fn ref_entry(&mut self, page: <Self as MapperExt>::Page) -> Result<&mut PageTableEntry, FlagUpdateError> {
+    fn ref_entry(
+        &mut self,
+        page: <Self as MapperExt>::Page,
+    ) -> Result<&mut PageTableEntry, FlagUpdateError> {
         if self.root_table[page.p4_index()].is_unused() {
             return Err(FlagUpdateError::PageNotMapped);
         }
