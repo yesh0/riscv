@@ -1,0 +1,2 @@
+[target.riscv64gc-unknown-linux-gnu]
+linker = "rust-lld"
