@@ -23,6 +23,7 @@ extern crate bare_metal;
 #[macro_use]
 extern crate bitflags;
 extern crate bit_field;
+extern crate riscv_hypervisor_extension;
 
 pub mod addr;
 pub mod asm;

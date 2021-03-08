@@ -5,6 +5,7 @@ use addr::*;
 pub trait Mapper {
     type P: PhysicalAddress;
     type V: VirtualAddress;
+    type MapperFlush: MapperFlushable;
     /// Creates a new mapping in the page table.
     ///
     /// This function might need additional physical frames to create new page tables. These
@@ -15,12 +16,12 @@ pub trait Mapper {
         frame: FrameWith<Self::P>,
         flags: PageTableFlags,
         allocator: &mut impl FrameAllocator,
-    ) -> Result<MapperFlush, MapToError>;
+    ) -> Result<Self::MapperFlush, MapToError>;
 
     /// Removes a mapping from the page table and returns the frame that used to be mapped.
     ///
     /// Note that no page tables or pages are deallocated.
-    fn unmap(&mut self, page: PageWith<Self::V>) -> Result<(FrameWith<Self::P>, MapperFlush), UnmapError>;
+    fn unmap(&mut self, page: PageWith<Self::V>) -> Result<(FrameWith<Self::P>, Self::MapperFlush), UnmapError>;
 
     /// Get the reference of the specified `page` entry
     fn ref_entry(&mut self, page: PageWith<Self::V>) -> Result<&mut PageTableEntry, FlagUpdateError>;
@@ -30,10 +31,10 @@ pub trait Mapper {
         &mut self,
         page: PageWith<Self::V>,
         flags: PageTableFlags,
-    ) -> Result<MapperFlush, FlagUpdateError> {
+    ) -> Result<Self::MapperFlush, FlagUpdateError> {
         self.ref_entry(page).map(|e| {
             *e.flags_mut() = flags;
-            MapperFlush::new(page)
+            Self::MapperFlush::new(page)
         })
     }
 
@@ -57,30 +58,36 @@ pub trait Mapper {
         frame: FrameWith<Self::P>,
         flags: PageTableFlags,
         allocator: &mut impl FrameAllocator,
-    ) -> Result<MapperFlush, MapToError> {
+    ) -> Result<Self::MapperFlush, MapToError> {
         let page = PageWith::of_addr(Self::V::new(frame.start_address().as_usize()));
         self.map_to(page, frame, flags, allocator)
     }
 }
 
+pub trait MapperFlushable{
+    /// Create a new flush promise
+    fn new<T: VirtualAddress>(page: PageWith<T>)->Self;
+    /// Flush the page from the TLB to ensure that the newest mapping is used.
+    fn flush(self);
+    /// Don't flush the TLB and silence the “must be used” warning.
+    fn ignore(self);
+}
+
 #[must_use = "Page Table changes must be flushed or ignored."]
 pub struct MapperFlush(usize);
 
-impl MapperFlush {
-    /// Create a new flush promise
-    pub(crate) fn new<T: VirtualAddress>(page: PageWith<T>) -> Self {
+impl MapperFlushable for MapperFlush {
+    fn new<T: VirtualAddress>(page: PageWith<T>) -> Self {
         MapperFlush(page.start_address().as_usize())
     }
-
-    /// Flush the page from the TLB to ensure that the newest mapping is used.
-    pub fn flush(self) {
+    fn flush(self) {
         unsafe {
             crate::asm::sfence_vma(0, self.0);
         }
     }
 
-    /// Don't flush the TLB and silence the “must be used” warning.
-    pub fn ignore(self) {}
+    
+    fn ignore(self) {}
 }
 
 /// This error is returned from `map_to` and similar methods.
@@ -472,6 +479,7 @@ impl<T: Mapper> MapperExt for T{
 impl<'a> Mapper for RecursivePageTable<'a> {
     type P = PhysAddr;
     type V = VirtAddr;
+    type MapperFlush = MapperFlush;
     fn map_to(
         &mut self,
         page: Page,
