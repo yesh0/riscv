@@ -214,6 +214,7 @@ impl<'a> CSRDescriptor<'a>{
     pub fn generate(&self)->String{
     let mut trait_impls = String::new();
     let mut enums = String::new();
+    let mut debug_fields = String::new();
     for bf in self.bfs.iter(){
         if bf.lo==bf.hi{
             write!(&mut trait_impls, "{}",bf.generate_bit_set()).unwrap(); 
@@ -222,13 +223,14 @@ impl<'a> CSRDescriptor<'a>{
         if let Some(x)=bf.generate_enum(){
             write!(&mut enums, "{}", x).unwrap();
         }
+        write!(&mut debug_fields, "         .field(\"{}\", &self.read_{}())\n", bf.name, bf.name).unwrap();
     }
         format!(
 "
 use super::BoolExt;
 /// {}
-#[derive(Copy, Clone, Debug)]
-pub struct {}(usize);
+#[derive(Copy, Clone)]
+pub struct {}(pub usize);
 impl {}{{
 #[inline]
 pub fn read()->Self{{
@@ -248,7 +250,15 @@ pub fn replace(self)->Self{{
 {}
 // csr mod
 {}
-", self.description, self.name, self.name, self.name, self.name, trait_impls, enums, format!(CSR_ACCESSOR!(), self.id))
+// Debug
+impl core::fmt::Debug for {} {{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {{
+        f.debug_struct(\"{}\")
+{}
+         .finish()
+    }}
+}}
+", self.description, self.name, self.name, self.name, self.name, trait_impls, enums, format!(CSR_ACCESSOR!(), self.id), self.name, self.name, debug_fields)
     }
 }
 /*

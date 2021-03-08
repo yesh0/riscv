@@ -28,7 +28,7 @@ fn template_rs1_rd(template: u32, rs1: Register, rd: Register) -> (u32, bool){
     (((rs1 as u32) << 15) | ((rd as u32) << 7) | template, true)
 }
 fn emit_instruction<T: std::io::Write>(writer: &mut T, writer_rust: &mut T, name: &str, insn: (u32, bool))->std::io::Result<()>{
-    write!(writer, "invoke_insn_{}:\n    .word {}\n    ret\n", name, insn.0)?;
+    write!(writer, ".global invoke_insn_{}\ninvoke_insn_{}:\n    .word {}\n    ret\n", name, name, insn.0)?;
     write!(writer_rust, "    pub fn invoke_insn_{}(rs1: usize, {}: usize);\n", name, if insn.1 {"rd"} else {"rs2"})
 }
 
@@ -36,7 +36,7 @@ fn emit_instruction<T: std::io::Write>(writer: &mut T, writer_rust: &mut T, name
 fn main() {
     let mut file = std::fs::File::create("asm.S").unwrap();
     let mut file_rs = std::fs::File::create("src/asm.rs").unwrap();
-    write!(&mut file_rs, "#[link(name = \"rvhasm\")]\nextern {{\n").unwrap();
+    write!(&mut file_rs, "extern \"C\" {{\n").unwrap();
     macro_rules! gen{
         (rs2, $name: expr, $template: ident)=>{
             emit_instruction(&mut file, &mut file_rs, $name, template_rs1_rs2($template, Register::a0, Register::a1)).unwrap();
@@ -61,8 +61,17 @@ fn main() {
     gen!(rs2, "hlv_d", HLV_D_TEMPLATE);
     gen!(rd, "hsv_d", HSV_D_TEMPLATE);
 
-    write!(&mut file_rs, "}}\n").unwrap();
+    write!(&mut file_rs, 
+"}}
+global_asm!(include_str!(\"../asm.S\"));
+").unwrap();
     drop(file);
     drop(file_rs);
-    cc::Build::new().file("asm.S").compile("librvhasm.a");
+    /*
+    let mut c = cc::Build::new();
+    c.target("riscv64imac-unknown-none-elf");
+    c.file("asm.S");
+    println!("{:?}", c.get_compiler());
+    c.compile("librvhasm.a");
+    */
 }
