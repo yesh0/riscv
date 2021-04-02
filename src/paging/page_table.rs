@@ -2,6 +2,7 @@ use addr::*;
 use core::fmt::{Debug, Error, Formatter};
 use core::ops::{Index, IndexMut};
 
+#[repr(C)]
 pub struct PageTable {
     entries: [PageTableEntry; ENTRY_COUNT],
 }
@@ -53,6 +54,7 @@ impl Debug for PageTable {
 }
 
 #[derive(Copy, Clone)]
+#[repr(C)]
 pub struct PageTableEntry(usize);
 
 impl PageTableEntry {
@@ -78,9 +80,6 @@ impl PageTableEntry {
         // U540 will raise page fault when accessing page with A=0 or D=0
         flags |= EF::ACCESSED | EF::DIRTY;
         self.0 = (frame.number() << 10) | flags.bits();
-    }
-    pub fn flags_mut(&mut self) -> &mut PageTableFlags {
-        unsafe { &mut *(self as *mut _ as *mut PageTableFlags) }
     }
 }
 
