@@ -75,7 +75,7 @@ pub unsafe fn sfence_vma(asid: usize, addr: usize) {
 }
 
 #[cfg(feature = "hypervisor")]
-mod hypervisor_extension{
+mod hypervisor_extension {
     // Generating instructions for Hypervisor extension.
     // There are two kinds of instructions: rs1/rs2 type and rs1/rd type.
     // Also special register handling is required before LLVM could generate inline assembly for extended instructions.

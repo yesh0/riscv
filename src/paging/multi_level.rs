@@ -8,7 +8,7 @@ use core::marker::PhantomData;
 pub struct Rv32PageTableWith<'a, V: VirtualAddress + AddressL2, FL: MapperFlushable> {
     root_table: &'a mut PageTableX32,
     linear_offset: u64, // VA = PA + linear_offset
-    phantom: PhantomData<fn()->(V, FL)>,
+    phantom: PhantomData<fn() -> (V, FL)>,
 }
 
 impl<'a, V: VirtualAddress + AddressL2, FL: MapperFlushable> Rv32PageTableWith<'a, V, FL> {
@@ -26,9 +26,7 @@ impl<'a, V: VirtualAddress + AddressL2, FL: MapperFlushable> Rv32PageTableWith<'
         allocator: &mut impl FrameAllocatorFor<<Self as Mapper>::P>,
     ) -> Result<&mut PageTableX32, MapToError> {
         if self.root_table[p2_index].is_unused() {
-            let frame = allocator
-                .alloc()
-                .ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
             self.root_table[p2_index].set(frame.clone(), F::VALID);
             let p1_table: &mut PageTableX32 = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p1_table.zero();
@@ -66,7 +64,8 @@ impl<'a, V: VirtualAddress + AddressL2, FL: MapperFlushable> Mapper
     fn unmap(
         &mut self,
         page: <Self as MapperExt>::Page,
-    ) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError<<Self as Mapper>::P>> {
+    ) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError<<Self as Mapper>::P>>
+    {
         if self.root_table[page.p2_index()].is_unused() {
             return Err(UnmapError::PageNotMapped);
         }
@@ -99,7 +98,7 @@ impl<'a, V: VirtualAddress + AddressL2, FL: MapperFlushable> Mapper
 pub struct Rv39PageTableWith<'a, V: VirtualAddress + AddressL3, FL: MapperFlushable> {
     root_table: &'a mut PageTableX64,
     linear_offset: u64, // VA = PA + linear_offset
-    phantom: PhantomData<fn()-> (V, FL)>,
+    phantom: PhantomData<fn() -> (V, FL)>,
 }
 
 impl<'a, V: VirtualAddress + AddressL3, FL: MapperFlushable> Rv39PageTableWith<'a, V, FL> {
@@ -118,9 +117,7 @@ impl<'a, V: VirtualAddress + AddressL3, FL: MapperFlushable> Rv39PageTableWith<'
         allocator: &mut impl FrameAllocatorFor<<Self as Mapper>::P>,
     ) -> Result<&mut PageTableX64, MapToError> {
         let p2_table = if self.root_table[p3_index].is_unused() {
-            let frame = allocator
-                .alloc()
-                .ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
             self.root_table[p3_index].set(frame.clone(), F::VALID);
             let p2_table: &mut PageTableX64 = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p2_table.zero();
@@ -130,9 +127,7 @@ impl<'a, V: VirtualAddress + AddressL3, FL: MapperFlushable> Rv39PageTableWith<'
             unsafe { frame.as_kernel_mut(self.linear_offset) }
         };
         if p2_table[p2_index].is_unused() {
-            let frame = allocator
-                .alloc()
-                .ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
             p2_table[p2_index].set(frame.clone(), F::VALID);
             let p1_table: &mut PageTableX64 = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p1_table.zero();
@@ -170,7 +165,8 @@ impl<'a, V: VirtualAddress + AddressL3, FL: MapperFlushable> Mapper
     fn unmap(
         &mut self,
         page: <Self as MapperExt>::Page,
-    ) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError<<Self as Mapper>::P>> {
+    ) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError<<Self as Mapper>::P>>
+    {
         if self.root_table[page.p3_index()].is_unused() {
             return Err(UnmapError::PageNotMapped);
         }
@@ -235,9 +231,7 @@ impl<'a, V: VirtualAddress + AddressL4, FL: MapperFlushable> Rv48PageTableWith<'
         allocator: &mut impl FrameAllocatorFor<<Self as Mapper>::P>,
     ) -> Result<&mut PageTableX64, MapToError> {
         let p3_table = if self.root_table[p4_index].is_unused() {
-            let frame = allocator
-                .alloc()
-                .ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
             self.root_table[p4_index].set(frame.clone(), F::VALID);
             let p3_table: &mut PageTableX64 = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p3_table.zero();
@@ -248,9 +242,7 @@ impl<'a, V: VirtualAddress + AddressL4, FL: MapperFlushable> Rv48PageTableWith<'
         };
 
         let p2_table = if p3_table[p3_index].is_unused() {
-            let frame = allocator
-                .alloc()
-                .ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
             p3_table[p3_index].set(frame.clone(), F::VALID);
             let p2_table: &mut PageTableX64 = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p2_table.zero();
@@ -261,9 +253,7 @@ impl<'a, V: VirtualAddress + AddressL4, FL: MapperFlushable> Rv48PageTableWith<'
         };
 
         if p2_table[p2_index].is_unused() {
-            let frame = allocator
-                .alloc()
-                .ok_or(MapToError::FrameAllocationFailed)?;
+            let frame = allocator.alloc().ok_or(MapToError::FrameAllocationFailed)?;
             p2_table[p2_index].set(frame.clone(), F::VALID);
             let p1_table: &mut PageTableX64 = unsafe { frame.as_kernel_mut(self.linear_offset) };
             p1_table.zero();
@@ -306,7 +296,8 @@ impl<'a, V: VirtualAddress + AddressL4, FL: MapperFlushable> Mapper
     fn unmap(
         &mut self,
         page: <Self as MapperExt>::Page,
-    ) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError<<Self as Mapper>::P>> {
+    ) -> Result<(<Self as MapperExt>::Frame, Self::MapperFlush), UnmapError<<Self as Mapper>::P>>
+    {
         if self.root_table[page.p4_index()].is_unused() {
             return Err(UnmapError::PageNotMapped);
         }

@@ -16,25 +16,25 @@ pub trait FrameDeallocatorFor<P: PhysicalAddress> {
 /// Polyfill for default use cases.
 
 #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-pub trait FrameAllocator{
+pub trait FrameAllocator {
     fn alloc(&mut self) -> Option<Frame>;
 }
 #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-pub trait FrameDeallocator{
+pub trait FrameDeallocator {
     fn dealloc(&mut self, frame: Frame);
 }
 
 #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-impl<T: FrameAllocator> FrameAllocatorFor<PhysAddr> for T{
+impl<T: FrameAllocator> FrameAllocatorFor<PhysAddr> for T {
     #[inline]
-    fn alloc(&mut self) -> Option<Frame>{
+    fn alloc(&mut self) -> Option<Frame> {
         FrameAllocator::alloc(self)
     }
 }
 #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-impl<T: FrameDeallocator> FrameDeallocatorFor<PhysAddr> for T{
+impl<T: FrameDeallocator> FrameDeallocatorFor<PhysAddr> for T {
     #[inline]
-    fn dealloc(&mut self, frame: Frame){
+    fn dealloc(&mut self, frame: Frame) {
         FrameDeallocator::dealloc(self, frame)
     }
 }

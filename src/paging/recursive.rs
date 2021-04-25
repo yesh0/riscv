@@ -453,7 +453,10 @@ impl<'a> Mapper for RecursivePageTable<'a> {
         Ok(MapperFlush::new(page))
     }
 
-    fn unmap(&mut self, page: Page) -> Result<(Frame, MapperFlush), UnmapError<<Self as Mapper>::P>> {
+    fn unmap(
+        &mut self,
+        page: Page,
+    ) -> Result<(Frame, MapperFlush), UnmapError<<Self as Mapper>::P>> {
         if self.root_table[page.p2_index()].is_unused() {
             return Err(UnmapError::PageNotMapped);
         }
@@ -509,7 +512,10 @@ impl<'a> Mapper for RecursivePageTable<'a> {
         Ok(MapperFlush::new(page))
     }
 
-    fn unmap(&mut self, page: Page) -> Result<(Frame, MapperFlush), UnmapError<<Self as Mapper>::P>> {
+    fn unmap(
+        &mut self,
+        page: Page,
+    ) -> Result<(Frame, MapperFlush), UnmapError<<Self as Mapper>::P>> {
         let p1_table = self.ref_p1(page).ok_or(UnmapError::PageNotMapped)?;
         let p1_entry = &mut p1_table[page.p1_index()];
         if !p1_entry.flags().contains(F::VALID) {
