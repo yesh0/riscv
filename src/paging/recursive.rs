@@ -37,7 +37,7 @@ pub trait Mapper {
         flags: PageTableFlags,
     ) -> Result<Self::MapperFlush, FlagUpdateError> {
         self.ref_entry(page).map(|e| {
-            *e.flags_mut() = flags;
+            e.set(e.frame::<Self::P>(), flags);
             Self::MapperFlush::new(page)
         })
     }

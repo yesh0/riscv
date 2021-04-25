@@ -42,6 +42,7 @@ impl PTEIterableSlice<PageTableEntryX64> for Entries64 {
     }
 }
 
+#[repr(C)]
 pub struct PageTableWith<T: PTEIterableSlice<E>, E: PTE> {
     entries: T,
     phantom: PhantomData<E>,
@@ -118,6 +119,7 @@ pub trait PTE {
     fn flags_mut(&mut self) -> &mut PageTableFlags;
 }
 #[derive(Copy, Clone)]
+#[repr(C)]
 pub struct PageTableEntryX32(u32);
 
 impl PTE for PageTableEntryX32 {
