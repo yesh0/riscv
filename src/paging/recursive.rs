@@ -1,6 +1,9 @@
 use super::frame_alloc::*;
-use super::page_table::{PageTableFlags as F, *};
+use super::page_table::*;
 use addr::*;
+
+#[cfg(any(riscv32, riscv64))]
+use super::page_table::PageTableFlags as F;
 
 pub trait Mapper {
     type P: PhysicalAddress;
@@ -25,7 +28,7 @@ pub trait Mapper {
     fn unmap(
         &mut self,
         page: PageWith<Self::V>,
-    ) -> Result<(FrameWith<Self::P>, Self::MapperFlush), UnmapError>;
+    ) -> Result<(FrameWith<Self::P>, Self::MapperFlush), UnmapError<<Self as Mapper>::P>>;
 
     /// Get the reference of the specified `page` entry
     fn ref_entry(&mut self, page: PageWith<Self::V>) -> Result<&mut Self::Entry, FlagUpdateError>;
@@ -43,7 +46,7 @@ pub trait Mapper {
     }
 
     /// Return the frame that the specified page is mapped to.
-    fn translate_page(&mut self, page: PageWith<Self::V>) -> Option<Frame> {
+    fn translate_page(&mut self, page: PageWith<Self::V>) -> Option<FrameWith<Self::P>> {
         match self.ref_entry(page) {
             Ok(e) => {
                 if e.is_unused() {
@@ -108,14 +111,14 @@ pub enum MapToError {
 
 /// An error indicating that an `unmap` call failed.
 #[derive(Debug)]
-pub enum UnmapError {
+pub enum UnmapError<P: PhysicalAddress> {
     /// An upper level page table entry has the `HUGE_PAGE` flag set, which means that the
     /// given page is part of a huge page and can't be freed individually.
     ParentEntryHugePage,
     /// The given page is not mapped to a physical frame.
     PageNotMapped,
     /// The page table entry for the given page points to an invalid physical address.
-    InvalidFrameAddress(PhysAddr),
+    InvalidFrameAddress(P),
 }
 
 /// An error indicating that an `update_flags` call failed.
@@ -125,11 +128,13 @@ pub enum FlagUpdateError {
     PageNotMapped,
 }
 
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 struct TempMap<'a> {
     entry: &'a mut PageTableEntry,
     pt_addr: VirtAddr,
 }
 
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 impl<'a> TempMap<'a> {
     #[cfg(riscv32)]
     unsafe fn new(rec_idx: usize) -> Self {
@@ -183,6 +188,7 @@ pub enum PageTableType {
 /// A recursive page table is a last level page table with an entry mapped to the table itself.
 ///
 /// This struct implements the `Mapper` trait.
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 pub struct RecursivePageTable<'a> {
     root_table: &'a mut PageTable,
     /// Recursive index as `R`
@@ -447,7 +453,7 @@ impl<'a> Mapper for RecursivePageTable<'a> {
         Ok(MapperFlush::new(page))
     }
 
-    fn unmap(&mut self, page: Page) -> Result<(Frame, MapperFlush), UnmapError> {
+    fn unmap(&mut self, page: Page) -> Result<(Frame, MapperFlush), UnmapError<<Self as Mapper>::P>> {
         if self.root_table[page.p2_index()].is_unused() {
             return Err(UnmapError::PageNotMapped);
         }
@@ -503,7 +509,7 @@ impl<'a> Mapper for RecursivePageTable<'a> {
         Ok(MapperFlush::new(page))
     }
 
-    fn unmap(&mut self, page: Page) -> Result<(Frame, MapperFlush), UnmapError> {
+    fn unmap(&mut self, page: Page) -> Result<(Frame, MapperFlush), UnmapError<<Self as Mapper>::P>> {
         let p1_table = self.ref_p1(page).ok_or(UnmapError::PageNotMapped)?;
         let p1_entry = &mut p1_table[page.p1_index()];
         if !p1_entry.flags().contains(F::VALID) {

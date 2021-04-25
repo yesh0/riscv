@@ -1,6 +1,6 @@
 //! Traits for abstracting away frame allocation and deallocation.
 
-use addr::{FrameWith, PhysicalAddress};
+use addr::*;
 /// A trait for types that can allocate a frame of memory.
 pub trait FrameAllocatorFor<P: PhysicalAddress> {
     /// Allocate a frame of the appropriate size and return it if possible.
@@ -14,20 +14,24 @@ pub trait FrameDeallocatorFor<P: PhysicalAddress> {
 }
 
 /// Polyfill for default use cases.
-use crate::addr::*;
+
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 pub trait FrameAllocator{
     fn alloc(&mut self) -> Option<Frame>;
 }
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 pub trait FrameDeallocator{
     fn dealloc(&mut self, frame: Frame);
 }
 
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 impl<T: FrameAllocator> FrameAllocatorFor<PhysAddr> for T{
     #[inline]
     fn alloc(&mut self) -> Option<Frame>{
         FrameAllocator::alloc(self)
     }
 }
+#[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 impl<T: FrameDeallocator> FrameDeallocatorFor<PhysAddr> for T{
     #[inline]
     fn dealloc(&mut self, frame: Frame){
