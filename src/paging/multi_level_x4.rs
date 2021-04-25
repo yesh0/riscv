@@ -2,9 +2,9 @@ use crate::addr::*;
 use crate::paging::multi_level::Rv32PageTableWith;
 use crate::paging::multi_level::{Rv39PageTableWith, Rv48PageTableWith};
 use crate::paging::recursive::MapperFlushable;
-use riscv_hypervisor_extension::asm::*;
+use crate::asm::{hfence_gvma, hfence_vvma};
 
-#[must_use = "Guest Page Address Table changes must be flushed or ignored."]
+#[must_use = "Guest Physical Address Table changes must be flushed or ignored."]
 pub struct MapperFlushGPA(usize);
 
 impl MapperFlushable for MapperFlushGPA {
@@ -13,14 +13,14 @@ impl MapperFlushable for MapperFlushGPA {
     }
     fn flush(self) {
         unsafe {
-            invoke_insn_hfence_gvma(self.0, 0);
+            hfence_gvma(self.0, 0);
         }
     }
 
     fn ignore(self) {}
 }
 
-#[must_use = "Guest PageTable changes must be flushed or ignored."]
+#[must_use = "Guest Page Table changes must be flushed or ignored."]
 pub struct MapperFlushGPT(usize);
 
 impl MapperFlushable for MapperFlushGPT {
@@ -29,7 +29,7 @@ impl MapperFlushable for MapperFlushGPT {
     }
     fn flush(self) {
         unsafe {
-            invoke_insn_hfence_vvma(self.0, 0);
+            hfence_vvma(self.0, 0);
         }
     }
 

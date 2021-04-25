@@ -64,15 +64,38 @@ pub use self::sv32::*;
 pub use self::sv39::*;
 pub use self::sv48::*;
 
+
+#[macro_export]
+macro_rules! use_sv32{
+    ()=>{
+        pub type VirtAddr = VirtAddrSv32;
+        pub type PhysAddr = PhysAddrSv32;
+        pub type Page = PageWith<VirtAddr>;
+        pub type Frame = FrameWith<PhysAddr>;
+    }
+}
+#[macro_export]
+macro_rules! use_sv39{
+    ()=>{
+        pub type VirtAddr = VirtAddrSv39;
+        pub type PhysAddr = PhysAddrSv39;
+        pub type Page = PageWith<VirtAddr>;
+        pub type Frame = FrameWith<PhysAddr>;
+    }
+}
+#[macro_export]
+macro_rules! use_sv48{
+    ()=>{
+        pub type VirtAddr = VirtAddrSv48;
+        pub type PhysAddr = PhysAddrSv48;
+        pub type Page = PageWith<VirtAddr>;
+        pub type Frame = FrameWith<PhysAddr>;
+    }
+}
 #[cfg(target_arch = "riscv64")]
-pub type VirtAddr = VirtAddrSv48;
-#[cfg(target_arch = "riscv64")]
-pub type PhysAddr = PhysAddrSv48;
+use_sv48!();
 
 #[cfg(target_arch = "riscv32")]
-pub type VirtAddr = VirtAddrSv32;
-#[cfg(target_arch = "riscv32")]
-pub type PhysAddr = PhysAddrSv32;
+use_sv32!();
 
-pub type Page = PageWith<VirtAddr>;
-pub type Frame = FrameWith<PhysAddr>;
+

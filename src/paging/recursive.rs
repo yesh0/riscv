@@ -16,7 +16,7 @@ pub trait Mapper {
         page: PageWith<Self::V>,
         frame: FrameWith<Self::P>,
         flags: PageTableFlags,
-        allocator: &mut impl FrameAllocator,
+        allocator: &mut impl FrameAllocatorFor<<Self as Mapper>::P>,
     ) -> Result<Self::MapperFlush, MapToError>;
 
     /// Removes a mapping from the page table and returns the frame that used to be mapped.
@@ -61,7 +61,7 @@ pub trait Mapper {
         &mut self,
         frame: FrameWith<Self::P>,
         flags: PageTableFlags,
-        allocator: &mut impl FrameAllocator,
+        allocator: &mut impl FrameAllocatorFor<<Self as Mapper>::P>,
     ) -> Result<Self::MapperFlush, MapToError> {
         let page = PageWith::of_addr(Self::V::new(frame.start_address().as_usize()));
         self.map_to(page, frame, flags, allocator)
@@ -257,7 +257,7 @@ impl<'a> RecursivePageTable<'a> {
     fn create_p1_if_not_exist(
         &mut self,
         p2_index: usize,
-        allocator: &mut impl FrameAllocator,
+        allocator: &mut impl FrameAllocatorFor<<Self as Mapper>::P>,
     ) -> Result<&mut PageTable, MapToError> {
         assert!(
             p2_index < self.rec_idx || p2_index > self.rec_idx + 2,
@@ -333,7 +333,7 @@ impl<'a> RecursivePageTable<'a> {
     fn create_p1_if_not_exist(
         &mut self,
         page: Page,
-        allocator: &mut impl FrameAllocator,
+        allocator: &mut impl FrameAllocatorFor<<Self as Mapper>::P>,
     ) -> Result<&mut PageTable, MapToError> {
         assert!(
             page.p4_index() < self.rec_idx || page.p4_index() > self.rec_idx + 2,
@@ -437,7 +437,7 @@ impl<'a> Mapper for RecursivePageTable<'a> {
         page: Page,
         frame: Frame,
         flags: PageTableFlags,
-        allocator: &mut impl FrameAllocator,
+        allocator: &mut impl FrameAllocatorFor<<Self as Mapper>::P>,
     ) -> Result<MapperFlush, MapToError> {
         let p1_table = self.create_p1_if_not_exist(page.p2_index(), allocator)?;
         if !p1_table[page.p1_index()].is_unused() {
@@ -493,7 +493,7 @@ impl<'a> Mapper for RecursivePageTable<'a> {
         page: Page,
         frame: Frame,
         flags: PageTableFlags,
-        allocator: &mut impl FrameAllocator,
+        allocator: &mut impl FrameAllocatorFor<<Self as Mapper>::P>,
     ) -> Result<MapperFlush, MapToError> {
         let p1 = self.create_p1_if_not_exist(page, allocator)?;
         if !p1[page.p1_index()].is_unused() {

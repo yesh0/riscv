@@ -1,3 +1,0 @@
-target/
-riscv-hypervisor-extension-proc-macro/target/
-asm.S
