@@ -258,6 +258,18 @@ use bit_field::BitField;
 #[derive(Copy, Clone, Debug)]
 pub struct {}{{\n    bits: usize,\n}}
 impl {}{{
+    #[inline]
+    pub fn bits(&self) -> usize{{
+        return self.bits;
+    }}
+    #[inline]
+    pub fn from_bits(x: usize) -> Self{{
+        return {}{{bits: x}};
+    }}
+    #[inline]
+    pub unsafe fn write(&self){{
+        _write(self.bits);
+    }}
 {}
 }}
 read_csr_as!({}, {}, __read_{});
@@ -273,6 +285,7 @@ clear!({}, __clear_{});
     , self.description, 
     self.name, 
     self.name, 
+    self.name,
     trait_impls, 
     self.name, self.id, self.canonical_name(),
     self.id, self.canonical_name(),

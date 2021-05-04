@@ -7,6 +7,18 @@ pub struct Vscause {
     bits: usize,
 }
 impl Vscause {
+    #[inline]
+    pub fn bits(&self) -> usize {
+        return self.bits;
+    }
+    #[inline]
+    pub fn from_bits(x: usize) -> Self {
+        return Vscause { bits: x };
+    }
+    #[inline]
+    pub unsafe fn write(&self) {
+        _write(self.bits);
+    }
     /// Is cause interrupt.
     #[inline]
     pub fn interrupt(&self) -> bool {

@@ -1,4 +1,4 @@
-Vstatus
+Vsstatus
 512
 sd,63,60,number,
 uxl,33,32,UxlValues,Uxl32=1;Uxl64;Uxl128,Effective User XLEN.

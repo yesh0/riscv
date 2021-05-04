@@ -7,6 +7,18 @@ pub struct Hstatus {
     bits: usize,
 }
 impl Hstatus {
+    #[inline]
+    pub fn bits(&self) -> usize {
+        return self.bits;
+    }
+    #[inline]
+    pub fn from_bits(x: usize) -> Self {
+        return Hstatus { bits: x };
+    }
+    #[inline]
+    pub unsafe fn write(&self) {
+        _write(self.bits);
+    }
     /// Effective XLEN for VM.
     #[inline]
     pub fn vsxl(&self) -> VsxlValues {
@@ -70,6 +82,15 @@ impl Hstatus {
     pub fn set_spvp(&mut self, val: bool) {
         self.bits.set_bit(8, val);
     }
+    /// Supervisor Previous Virtualization mode.
+    #[inline]
+    pub fn spv(&self) -> bool {
+        self.bits.get_bit(7)
+    }
+    #[inline]
+    pub fn set_spv(&mut self, val: bool) {
+        self.bits.set_bit(7, val);
+    }
     /// Guest Virtual Address.
     #[inline]
     pub fn gva(&self) -> bool {
@@ -109,6 +130,9 @@ set_clear_csr!(
 set_clear_csr!(
     ///Supervisor Previous Virtual Privilege.
     , set_spvp, clear_spvp, 1 << 8);
+set_clear_csr!(
+    ///Supervisor Previous Virtualization mode.
+    , set_spv, clear_spv, 1 << 7);
 set_clear_csr!(
     ///Guest Virtual Address.
     , set_gva, clear_gva, 1 << 6);

@@ -7,6 +7,7 @@ vtvm,20,20,number,TVM for VM.
 vgein,17,12,number,Virtual Guest External Interrupt Number.
 hu,9,9,number,Hypervisor User mode.
 spvp,8,8,number,Supervisor Previous Virtual Privilege.
+spv,7,7,number,Supervisor Previous Virtualization mode.
 gva,6,6,number,Guest Virtual Address.
 vsbe,5,5,number,VS access endianness.
 end

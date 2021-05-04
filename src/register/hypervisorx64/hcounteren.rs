@@ -7,6 +7,18 @@ pub struct Hcounteren {
     bits: usize,
 }
 impl Hcounteren {
+    #[inline]
+    pub fn bits(&self) -> usize {
+        return self.bits;
+    }
+    #[inline]
+    pub fn from_bits(x: usize) -> Self {
+        return Hcounteren { bits: x };
+    }
+    #[inline]
+    pub unsafe fn write(&self) {
+        _write(self.bits);
+    }
     ///
     #[inline]
     pub fn cy(&self) -> bool {

@@ -3,10 +3,22 @@
 use bit_field::BitField;
 
 #[derive(Copy, Clone, Debug)]
-pub struct Vstatus {
+pub struct Vsstatus {
     bits: usize,
 }
-impl Vstatus {
+impl Vsstatus {
+    #[inline]
+    pub fn bits(&self) -> usize {
+        return self.bits;
+    }
+    #[inline]
+    pub fn from_bits(x: usize) -> Self {
+        return Vsstatus { bits: x };
+    }
+    #[inline]
+    pub unsafe fn write(&self) {
+        _write(self.bits);
+    }
     ///
     #[inline]
     pub fn sd(&self) -> usize {
@@ -98,10 +110,10 @@ impl Vstatus {
         self.bits.set_bit(1, val);
     }
 }
-read_csr_as!(Vstatus, 512, __read_vstatus);
-write_csr!(512, __write_vstatus);
-set!(512, __set_vstatus);
-clear!(512, __clear_vstatus);
+read_csr_as!(Vsstatus, 512, __read_vsstatus);
+write_csr!(512, __write_vsstatus);
+set!(512, __set_vsstatus);
+clear!(512, __clear_vsstatus);
 // bit ops
 set_clear_csr!(
     ///

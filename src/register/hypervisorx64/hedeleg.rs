@@ -7,6 +7,18 @@ pub struct Hedeleg {
     bits: usize,
 }
 impl Hedeleg {
+    #[inline]
+    pub fn bits(&self) -> usize {
+        return self.bits;
+    }
+    #[inline]
+    pub fn from_bits(x: usize) -> Self {
+        return Hedeleg { bits: x };
+    }
+    #[inline]
+    pub unsafe fn write(&self) {
+        _write(self.bits);
+    }
     /// Instruction address misaligned
     #[inline]
     pub fn ex0(&self) -> bool {

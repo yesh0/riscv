@@ -7,6 +7,18 @@ pub struct Hideleg {
     bits: usize,
 }
 impl Hideleg {
+    #[inline]
+    pub fn bits(&self) -> usize {
+        return self.bits;
+    }
+    #[inline]
+    pub fn from_bits(x: usize) -> Self {
+        return Hideleg { bits: x };
+    }
+    #[inline]
+    pub unsafe fn write(&self) {
+        _write(self.bits);
+    }
     /// Software Interrupt
     #[inline]
     pub fn sip(&self) -> bool {

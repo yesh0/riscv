@@ -7,6 +7,18 @@ pub struct Hie {
     bits: usize,
 }
 impl Hie {
+    #[inline]
+    pub fn bits(&self) -> usize {
+        return self.bits;
+    }
+    #[inline]
+    pub fn from_bits(x: usize) -> Self {
+        return Hie { bits: x };
+    }
+    #[inline]
+    pub unsafe fn write(&self) {
+        _write(self.bits);
+    }
     /// Software Interrupt
     #[inline]
     pub fn vssie(&self) -> bool {

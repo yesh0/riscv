@@ -7,6 +7,18 @@ pub struct Vsatp {
     bits: usize,
 }
 impl Vsatp {
+    #[inline]
+    pub fn bits(&self) -> usize {
+        return self.bits;
+    }
+    #[inline]
+    pub fn from_bits(x: usize) -> Self {
+        return Vsatp { bits: x };
+    }
+    #[inline]
+    pub unsafe fn write(&self) {
+        _write(self.bits);
+    }
     /// Guest address translation mode.
     #[inline]
     pub fn mode(&self) -> HgatpValues {
