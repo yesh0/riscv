@@ -88,7 +88,7 @@ mod hypervisor_extension {
                 match () {
                     #[cfg(all(riscv, feature = "inline-asm"))]
                     // Since LLVM does not recognize the two registers, we assume they are placed in a0 and a1, correspondingly.
-                    () => llvm_asm!($asm ::"{a0}"(rs1),"{a1}"(rs2):: "volatile"),
+                    () => llvm_asm!($asm ::"{x10}"(rs1),"{x11}"(rs2):: "volatile"),
 
                     #[cfg(all(riscv, not(feature = "inline-asm")))]
                     () => {
@@ -113,7 +113,7 @@ mod hypervisor_extension {
                     #[cfg(all(riscv, feature = "inline-asm"))]
                     () => {
                         let mut result : usize;
-                        llvm_asm!($asm :"={a0}"(result):"{a0}"(rs1):: "volatile");
+                        llvm_asm!($asm :"={x10}"(result):"{x10}"(rs1):: "volatile");
                         return result;
                     }
 
