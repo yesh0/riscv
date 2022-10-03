@@ -1,7 +1,7 @@
 //! satp register
 
 #[cfg(riscv)]
-use addr::Frame;
+use crate::addr::Frame;
 use bit_field::BitField;
 
 /// satp register

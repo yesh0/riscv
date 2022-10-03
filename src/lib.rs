@@ -13,7 +13,6 @@
 //! - Interrupt manipulation mechanisms.
 //! - Wrappers around assembly instructions like `WFI`.
 
-
 #![no_std]
 #[macro_use]
 extern crate bitflags;
