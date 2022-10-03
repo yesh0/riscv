@@ -125,9 +125,7 @@ impl PTE for PageTableEntryX32 {
     fn frame<T: PhysicalAddress>(&self) -> FrameWith<T> {
         FrameWith::of_addr(self.addr())
     }
-    fn set<T: PhysicalAddress>(&mut self, frame: FrameWith<T>, mut flags: PageTableFlags) {
-        // U540 will raise page fault when accessing page with A=0 or D=0
-        flags |= EF::ACCESSED | EF::DIRTY;
+    fn set<T: PhysicalAddress>(&mut self, frame: FrameWith<T>, flags: PageTableFlags) {
         self.0 = ((frame.number() << 10) | flags.bits()) as u32;
     }
     fn flags_mut(&mut self) -> &mut PageTableFlags {
@@ -169,9 +167,7 @@ impl PTE for PageTableEntryX64 {
     fn frame<T: PhysicalAddress>(&self) -> FrameWith<T> {
         FrameWith::of_addr(self.addr())
     }
-    fn set<T: PhysicalAddress>(&mut self, frame: FrameWith<T>, mut flags: PageTableFlags) {
-        // U540 will raise page fault when accessing page with A=0 or D=0
-        flags |= EF::ACCESSED | EF::DIRTY;
+    fn set<T: PhysicalAddress>(&mut self, frame: FrameWith<T>, flags: PageTableFlags) {
         self.0 = ((frame.number() << 10) | flags.bits()) as u64;
     }
     fn flags_mut(&mut self) -> &mut PageTableFlags {
@@ -248,5 +244,3 @@ bitflags! {
         const RESERVED2 =   1 << 9;
     }
 }
-
-type EF = PageTableFlags;
