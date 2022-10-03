@@ -47,10 +47,10 @@ impl Vsie {
         self.bits.set_bit(9, val);
     }
 }
-read_csr_as!(Vsie, 516, __read_vsie);
-write_csr!(516, __write_vsie);
-set!(516, __set_vsie);
-clear!(516, __clear_vsie);
+read_csr_as!(Vsie, 516);
+write_csr!(516);
+set!(516);
+clear!(516);
 // bit ops
 set_clear_csr!(
     ///Software Interrupt

@@ -1,4 +1,4 @@
-use addr::*;
+use crate::addr::*;
 use core::convert::TryInto;
 use core::fmt::{Debug, Error, Formatter};
 use core::marker::PhantomData;

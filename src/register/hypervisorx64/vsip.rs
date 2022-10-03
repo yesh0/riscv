@@ -47,10 +47,10 @@ impl Vsip {
         self.bits.set_bit(9, val);
     }
 }
-read_csr_as!(Vsip, 580, __read_vsip);
-write_csr!(580, __write_vsip);
-set!(580, __set_vsip);
-clear!(580, __clear_vsip);
+read_csr_as!(Vsip, 580);
+write_csr!(580);
+set!(580);
+clear!(580);
 // bit ops
 set_clear_csr!(
     ///Software Interrupt

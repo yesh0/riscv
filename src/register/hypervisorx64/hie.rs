@@ -56,10 +56,10 @@ impl Hie {
         self.bits.set_bit(12, val);
     }
 }
-read_csr_as!(Hie, 1540, __read_hie);
-write_csr!(1540, __write_hie);
-set!(1540, __set_hie);
-clear!(1540, __clear_hie);
+read_csr_as!(Hie, 1540);
+write_csr!(1540);
+set!(1540);
+clear!(1540);
 // bit ops
 set_clear_csr!(
     ///Software Interrupt

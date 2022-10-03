@@ -110,10 +110,10 @@ impl Hstatus {
         self.bits.set_bit(5, val);
     }
 }
-read_csr_as!(Hstatus, 1536, __read_hstatus);
-write_csr!(1536, __write_hstatus);
-set!(1536, __set_hstatus);
-clear!(1536, __clear_hstatus);
+read_csr_as!(Hstatus, 1536);
+write_csr!(1536);
+set!(1536);
+clear!(1536);
 // bit ops
 set_clear_csr!(
     ///TSR for VM.

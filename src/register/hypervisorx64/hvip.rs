@@ -47,10 +47,10 @@ impl Hvip {
         self.bits.set_bit(10, val);
     }
 }
-read_csr_as!(Hvip, 1605, __read_hvip);
-write_csr!(1605, __write_hvip);
-set!(1605, __set_hvip);
-clear!(1605, __clear_hvip);
+read_csr_as!(Hvip, 1605);
+write_csr!(1605);
+set!(1605);
+clear!(1605);
 // bit ops
 set_clear_csr!(
     ///Software Interrupt

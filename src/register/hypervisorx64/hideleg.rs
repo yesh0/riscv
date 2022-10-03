@@ -47,10 +47,10 @@ impl Hideleg {
         self.bits.set_bit(10, val);
     }
 }
-read_csr_as!(Hideleg, 1539, __read_hideleg);
-write_csr!(1539, __write_hideleg);
-set!(1539, __set_hideleg);
-clear!(1539, __clear_hideleg);
+read_csr_as!(Hideleg, 1539);
+write_csr!(1539);
+set!(1539);
+clear!(1539);
 // bit ops
 set_clear_csr!(
     ///Software Interrupt

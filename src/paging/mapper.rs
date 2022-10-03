@@ -1,6 +1,6 @@
 use super::frame_alloc::*;
 use super::page_table::*;
-use addr::*;
+use crate::addr::*;
 
 pub trait Mapper {
     type P: PhysicalAddress;

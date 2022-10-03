@@ -38,10 +38,10 @@ impl Vstvec {
         self.bits.set_bits(0..2, val);
     }
 }
-read_csr_as!(Vstvec, 517, __read_vstvec);
-write_csr!(517, __write_vstvec);
-set!(517, __set_vstvec);
-clear!(517, __clear_vstvec);
+read_csr_as!(Vstvec, 517);
+write_csr!(517);
+set!(517);
+clear!(517);
 // bit ops
 
 // enums

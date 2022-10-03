@@ -47,10 +47,10 @@ impl Vsatp {
         self.bits.set_bits(0..44, val);
     }
 }
-read_csr_as!(Vsatp, 640, __read_vsatp);
-write_csr!(640, __write_vsatp);
-set!(640, __set_vsatp);
-clear!(640, __clear_vsatp);
+read_csr_as!(Vsatp, 640);
+write_csr!(640);
+set!(640);
+clear!(640);
 // bit ops
 
 // enums

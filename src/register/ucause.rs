@@ -14,4 +14,11 @@ impl Ucause {
     }
 }
 
-read_csr_as!(Ucause, 0x042, __read_ucause);
+read_csr_as!(Ucause, 0x042);
+write_csr!(0x042);
+
+/// Writes the CSR
+#[inline]
+pub unsafe fn write(bits: usize) {
+    _write(bits)
+}

@@ -1,8 +1,8 @@
 //! Interrupts
 
 // NOTE: Adapted from cortex-m/src/interrupt.rs
-pub use bare_metal::{CriticalSection, Mutex, Nr};
-use register::mstatus;
+use crate::register::mstatus;
+pub use bare_metal::{CriticalSection, Mutex};
 
 /// Disables all interrupts
 #[inline]
@@ -33,6 +33,7 @@ pub unsafe fn enable() {
 /// Execute closure `f` in an interrupt-free context.
 ///
 /// This as also known as a "critical section".
+#[inline]
 pub fn free<F, R>(f: F) -> R
 where
     F: FnOnce(&CriticalSection) -> R,

@@ -110,10 +110,10 @@ impl Vsstatus {
         self.bits.set_bit(1, val);
     }
 }
-read_csr_as!(Vsstatus, 512, __read_vsstatus);
-write_csr!(512, __write_vsstatus);
-set!(512, __set_vsstatus);
-clear!(512, __clear_vsstatus);
+read_csr_as!(Vsstatus, 512);
+write_csr!(512);
+set!(512);
+clear!(512);
 // bit ops
 set_clear_csr!(
     ///

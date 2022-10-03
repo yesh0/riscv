@@ -47,10 +47,10 @@ impl Hgatp {
         self.bits.set_bits(0..44, val);
     }
 }
-read_csr_as!(Hgatp, 1664, __read_hgatp);
-write_csr!(1664, __write_hgatp);
-set!(1664, __set_hgatp);
-clear!(1664, __clear_hgatp);
+read_csr_as!(Hgatp, 1664);
+write_csr!(1664);
+set!(1664);
+clear!(1664);
 // bit ops
 
 // enums

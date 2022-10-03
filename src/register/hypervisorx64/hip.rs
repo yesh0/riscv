@@ -56,10 +56,10 @@ impl Hip {
         self.bits.set_bit(12, val);
     }
 }
-read_csr_as!(Hip, 1604, __read_hip);
-write_csr!(1604, __write_hip);
-set!(1604, __set_hip);
-clear!(1604, __clear_hip);
+read_csr_as!(Hip, 1604);
+write_csr!(1604);
+set!(1604);
+clear!(1604);
 // bit ops
 set_clear_csr!(
     ///Software Interrupt

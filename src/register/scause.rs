@@ -54,6 +54,7 @@ pub enum Exception {
 }
 
 impl Interrupt {
+    #[inline]
     pub fn from(nr: usize) -> Self {
         match nr {
             0 => Interrupt::UserSoft,
@@ -71,6 +72,7 @@ impl Interrupt {
 }
 
 impl Exception {
+    #[inline]
     pub fn from(nr: usize) -> Self {
         match nr {
             0 => Exception::InstructionMisaligned,
@@ -102,6 +104,7 @@ impl Scause {
     }
 
     /// Returns the code field
+    #[inline]
     pub fn code(&self) -> usize {
         let bit = 1 << (size_of::<usize>() * 8 - 1);
         self.bits & !bit
@@ -130,4 +133,52 @@ impl Scause {
     }
 }
 
-read_csr_as!(Scause, 0x142, __read_scause);
+read_csr_as!(Scause, 0x142);
+write_csr!(0x142);
+
+/// Writes the CSR
+#[inline]
+pub unsafe fn write(bits: usize) {
+    _write(bits)
+}
+
+/// Set supervisor cause register to corresponding cause.
+#[inline]
+pub unsafe fn set(cause: Trap) {
+    let bits = match cause {
+        Trap::Interrupt(i) => {
+            (match i {
+                Interrupt::UserSoft => 0,
+                Interrupt::SupervisorSoft => 1,
+                Interrupt::VirtualSupervisorSoft => 2,
+                Interrupt::UserTimer => 4,
+                Interrupt::SupervisorTimer => 5,
+                Interrupt::VirtualSupervisorTimer => 6,
+                Interrupt::UserExternal => 8,
+                Interrupt::SupervisorExternal => 9,
+                Interrupt::VirtualSupervisorExternal => 10,
+                Interrupt::Unknown => panic!("unknown interrupt"),
+            } | (1 << (size_of::<usize>() * 8 - 1)))
+        } // interrupt bit is 1
+        Trap::Exception(e) => match e {
+            Exception::InstructionMisaligned => 0,
+            Exception::InstructionFault => 1,
+            Exception::IllegalInstruction => 2,
+            Exception::Breakpoint => 3,
+            Exception::LoadFault => 5,
+            Exception::StoreMisaligned => 6,
+            Exception::StoreFault => 7,
+            Exception::UserEnvCall => 8,
+            Exception::VirtualSupervisorEnvCall => 10,
+            Exception::InstructionPageFault => 12,
+            Exception::LoadPageFault => 13,
+            Exception::StorePageFault => 15,
+            Exception::InstructionGuestPageFault => 20,
+            Exception::LoadGuestPageFault => 21,
+            Exception::VirtualInstruction => 22,
+            Exception::StoreGuestPageFault => 23,
+            Exception::Unknown => panic!("unknown exception"),
+        }, // interrupt bit is 0
+    };
+    _write(bits);
+}

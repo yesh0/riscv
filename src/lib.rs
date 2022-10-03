@@ -2,7 +2,7 @@
 //!
 //! # Minimum Supported Rust Version (MSRV)
 //!
-//! This crate is guaranteed to compile on stable Rust 1.42 and up. It *might*
+//! This crate is guaranteed to compile on stable Rust 1.59 and up. It *might*
 //! compile with older versions but that may change in any new patch release.
 //!
 //! # Features
@@ -15,14 +15,16 @@
 
 
 #![no_std]
-#![cfg_attr(feature = "inline-asm", feature(asm_const))]
-extern crate bare_metal;
 #[macro_use]
 extern crate bitflags;
 extern crate bit_field;
 
 pub mod addr;
 pub mod asm;
+pub mod delay;
 pub mod interrupt;
 pub mod paging;
 pub mod register;
+
+#[macro_use]
+mod macros;

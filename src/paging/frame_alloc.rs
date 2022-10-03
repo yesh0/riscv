@@ -1,6 +1,6 @@
 //! Traits for abstracting away frame allocation and deallocation.
 
-use addr::*;
+use crate::addr::*;
 /// A trait for types that can allocate a frame of memory.
 pub trait FrameAllocatorFor<P: PhysicalAddress> {
     /// Allocate a frame of the appropriate size and return it if possible.

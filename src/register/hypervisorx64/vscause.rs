@@ -38,10 +38,10 @@ impl Vscause {
         self.bits.set_bits(0..63, val);
     }
 }
-read_csr_as!(Vscause, 578, __read_vscause);
-write_csr!(578, __write_vscause);
-set!(578, __set_vscause);
-clear!(578, __clear_vscause);
+read_csr_as!(Vscause, 578);
+write_csr!(578);
+set!(578);
+clear!(578);
 // bit ops
 set_clear_csr!(
     ///Is cause interrupt.

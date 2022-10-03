@@ -128,10 +128,10 @@ impl Hedeleg {
         self.bits.set_bit(15, val);
     }
 }
-read_csr_as!(Hedeleg, 1538, __read_hedeleg);
-write_csr!(1538, __write_hedeleg);
-set!(1538, __set_hedeleg);
-clear!(1538, __clear_hedeleg);
+read_csr_as!(Hedeleg, 1538);
+write_csr!(1538);
+set!(1538);
+clear!(1538);
 // bit ops
 set_clear_csr!(
     ///Instruction address misaligned

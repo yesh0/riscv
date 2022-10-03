@@ -10,16 +10,19 @@ pub struct Utvec {
 
 impl Utvec {
     /// Returns the contents of the register as raw bits
+    #[inline]
     pub fn bits(&self) -> usize {
         self.bits
     }
 
     /// Returns the trap-vector base-address
+    #[inline]
     pub fn address(&self) -> usize {
         self.bits - (self.bits & 0b11)
     }
 
     /// Returns the trap-vector mode
+    #[inline]
     pub fn trap_mode(&self) -> Option<TrapMode> {
         let mode = self.bits & 0b11;
         match mode {
@@ -30,8 +33,8 @@ impl Utvec {
     }
 }
 
-read_csr_as!(Utvec, 0x005, __read_utvec);
-write_csr!(0x005, __write_utvec);
+read_csr_as!(Utvec, 0x005);
+write_csr!(0x005);
 
 /// Writes the CSR
 #[inline]

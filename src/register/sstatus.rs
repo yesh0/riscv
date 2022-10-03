@@ -117,10 +117,10 @@ impl Sstatus {
     }
 }
 
-read_csr_as!(Sstatus, 0x100, __read_sstatus);
-write_csr!(0x100, __write_sstatus);
-set!(0x100, __set_sstatus);
-clear!(0x100, __clear_sstatus);
+read_csr_as!(Sstatus, 0x100);
+write_csr!(0x100);
+set!(0x100);
+clear!(0x100);
 
 set_clear_csr!(
     /// User Interrupt Enable
@@ -135,15 +135,14 @@ set_csr!(
     /// Supervisor Previous Interrupt Enable
     , set_spie, 1 << 5);
 set_clear_csr!(
-    /// Make eXecutable Readable
-    , set_mxr, clear_mxr, 1 << 19);
-set_clear_csr!(
     /// Permit Supervisor User Memory access
     , set_sum, clear_sum, 1 << 18);
+set_clear_csr!(
+    /// Make eXecutable Readable
+    , set_mxr, clear_mxr, 1 << 19);
 
 /// Supervisor Previous Privilege Mode
 #[inline]
-#[cfg(riscv)]
 pub unsafe fn set_spp(spp: SPP) {
     match spp {
         SPP::Supervisor => _set(1 << 8),
@@ -153,7 +152,6 @@ pub unsafe fn set_spp(spp: SPP) {
 
 /// The status of the floating-point unit
 #[inline]
-#[cfg(riscv)]
 pub unsafe fn set_fs(fs: FS) {
     let mut value = _read();
     value.set_bits(13..15, fs as usize);
